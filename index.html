@@ -537,16 +537,36 @@ const pokeCryUrls = [
     "audio/pikachu_cry.opus",
     "audio/eevee_cry.opus"
 ];
+
 const pokeCries = pokeCryUrls.map(url => {
-    const audio = new Audio(url);
+    const audio = new Audio();
+    audio.src = url;
     audio.volume = 0.6;
+    audio.preload = "auto";
+    audio.crossOrigin = "anonymous";
     return audio;
 });
 
-// 官方背景音樂
-const bgmAudio = new Audio("audio/bgm.opus");
-bgmAudio.loop = true;
-bgmAudio.volume = 0.25;
+// 官方背景音樂 - 改進加載機制
+let bgmAudio = null;
+
+function initBGM() {
+    if (bgmAudio) return;
+    bgmAudio = new Audio();
+    bgmAudio.src = "audio/bgm.opus";
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.25;
+    bgmAudio.preload = "auto";
+    bgmAudio.crossOrigin = "anonymous";
+    
+    // 監聽加載狀態
+    bgmAudio.addEventListener('loadstart', () => console.log('BGM 開始加載...'));
+    bgmAudio.addEventListener('canplay', () => console.log('BGM 已準備就緒'));
+    bgmAudio.addEventListener('error', (e) => {
+        console.error('BGM 加載失敗:', e);
+        startSynthBGM();
+    });
+}
 
 // ===================== Web Audio 合成音效（降級備用） =====================
 let audioCtx = null;
@@ -558,22 +578,33 @@ let tickInterval = null;
 
 function initAudioContext() {
     if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    } catch (e) {
+        console.error('AudioContext 初始化失敗:', e);
+    }
 }
 
 function playTone(freq, duration, type = "square", vol = 0.3, delay = 0) {
     if (!soundOn || !audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    const startTime = audioCtx.currentTime + delay;
-    osc.frequency.setValueAtTime(freq, startTime);
-    gain.gain.setValueAtTime(vol, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration);
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        const startTime = audioCtx.currentTime + delay;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(vol, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+    } catch (e) {
+        console.error('播放音調失敗:', e);
+    }
 }
 
 // 消除音效
@@ -650,11 +681,11 @@ function playPokeCrySynth(index) {
 
 function playPokeCry(index) {
     if (!soundOn) return;
-    const cry = pokeCries[index];
-    if (!cry) {
+    if (index < 0 || index >= pokeCries.length) {
         playPokeCrySynth(index);
         return;
     }
+    const cry = pokeCries[index];
     cry.currentTime = 0;
     cry.play().catch(() => {
         playPokeCrySynth(index);
@@ -675,16 +706,25 @@ function startSynthBGM() {
 
 function startBGM() {
     if (bgmPlaying || !soundOn) return;
+    
+    if (!bgmAudio) {
+        initBGM();
+    }
+    
     bgmPlaying = true;
     bgmAudio.currentTime = 0;
-    bgmAudio.play().catch(() => {
+    
+    bgmAudio.play().catch((err) => {
+        console.error('BGM 播放失敗，使用合成音樂:', err);
         startSynthBGM();
     });
 }
 
 function stopBGM() {
     bgmPlaying = false;
-    bgmAudio.pause();
+    if (bgmAudio) {
+        bgmAudio.pause();
+    }
     clearInterval(bgmInterval);
 }
 
@@ -788,6 +828,7 @@ soundBtn.addEventListener("click", toggleSound);
 
 function handleStartGame() {
     initAudioContext();
+    initBGM();
     audioUnlocked = true;
     playTone(440, 0.01, "sine", 0.01);
     startMask.classList.add("hidden");
@@ -1153,9 +1194,7 @@ function restartGame(){
     closeModal();
     // 重置BGM
     if(bgmPlaying){
-        bgmAudio.pause();
-        clearInterval(bgmInterval);
-        bgmPlaying = false;
+        stopBGM();
     }
     if(soundOn) startBGM();
     initBoard();
