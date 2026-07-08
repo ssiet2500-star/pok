@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>神奇寶貝Puzzle</title>
+<title>神奇寶貝碰碰碰</title>
 <style>
     * {
         margin: 0;
@@ -69,30 +69,33 @@
         gap: 4px;
     }
 
-    /* 載入進度條 */
+    /* 載入進度條 - 優化顯示更明顯 */
     .loading-bar-wrap {
         width: 320px;
         text-align: center;
-        color: white;
     }
     .loading-text {
-        margin-bottom: 8px;
-        font-size: 14px;
-        letter-spacing: 1px;
+        margin-bottom: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 0 0 8px rgba(255,215,0,0.6);
+        letter-spacing: 2px;
     }
     .loading-bar {
         width: 100%;
-        height: 8px;
+        height: 12px;
         background: rgba(255,255,255,0.2);
-        border-radius: 4px;
+        border-radius: 6px;
         overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.3);
     }
     .loading-progress {
         height: 100%;
         width: 0%;
-        background: #ffd700;
+        background: linear-gradient(90deg, #ffd700, #ffaa00);
         transition: width 0.3s ease;
-        box-shadow: 0 0 8px #ffd700;
+        box-shadow: 0 0 10px #ffd700;
     }
 
     .start-btn {
@@ -117,11 +120,13 @@
         transform: scale(1.08);
     }
 
+    /* 底部版權文字 - 改為黑色粗體 */
     .copyright-text {
         position: absolute;
         bottom: 20px;
-        color: rgba(255,255,255,0.75);
+        color: #000;
         font-size: 14px;
+        font-weight: bold;
         letter-spacing: 1px;
     }
 
@@ -575,14 +580,14 @@
     </div>
 
     <div class="loading-bar-wrap">
-        <div class="loading-text" id="loadingText">資源載入中 0%</div>
+        <div class="loading-text" id="loadingText">遊戲加載中，請稍後~</div>
         <div class="loading-bar">
             <div class="loading-progress" id="loadingProgress"></div>
         </div>
     </div>
 
     <button class="start-btn" id="startBtn" disabled>點擊開始遊戲<br>Start Game</button>
-    <div class="copyright-text">[文心鑫品]製作 2026/07/08</div>
+    <div class="copyright-text">[文心鑫品-美金出品] V.20260708</div>
 </div>
 
 <!-- 通關徽章 / 館主過場 -->
@@ -607,7 +612,7 @@
 <h1>
     <img class="title-logo" src="assets/wikilogo.png" alt="寶可夢標誌" onerror="this.style.display='none'">
     <img class="title-pokemon-text" src="assets/pokemon-title.jpg" alt="神奇寶貝" onerror="this.style.display='none'">
-    Puzzle
+    碰碰碰
 </h1>
 
 <div class="info-bar">
@@ -652,7 +657,7 @@
 </div>
 
 <script>
-// ===================== 基礎設定 =====================
+// ===================== 基礎數據優先定義（修復加載卡住核心問題）=====================
 const pokeList = [
     {
         name: "妙蛙種子",
@@ -703,20 +708,54 @@ const pokeList = [
 
 const ohwUrl = "assets/professor-oak.png";
 const SKILL_MAX = 3;
-let currentComboPoke = null; // 當前累計的寶可夢索引
-let skillCombo = 0; // 當前連擊次數 0~3
+let currentComboPoke = null;
+let skillCombo = 0;
 let isUltimateActive = false;
 
-// ===================== 資源預加載 =====================
+// 道館徽章數據
+const levelBadgeData = [
+    {badge:"assets/badges/badge_0.png",leader:"assets/leaders/leader_0.png"},
+    {badge:"assets/badges/badge_1.png",leader:"assets/leaders/leader_1.png"},
+    {badge:"assets/badges/badge_2.png",leader:"assets/leaders/leader_2.png"},
+    {badge:"assets/badges/badge_3.png",leader:"assets/leaders/leader_3.png"},
+    {badge:"assets/badges/badge_4.png",leader:"assets/leaders/leader_4.png"},
+    {badge:"assets/badges/badge_5.png",leader:"assets/leaders/leader_5.png"},
+    {badge:"assets/badges/badge_6.png",leader:"assets/leaders/leader_6.png"},
+    {badge:"assets/badges/badge_7.png",leader:"assets/leaders/leader_7.png"},
+    {badge:"assets/badges/badge_8.png",leader:"assets/leaders/leader_8.png"},
+    {badge:"assets/badges/badge_9.png",leader:"assets/leaders/leader_9.png"},
+    {badge:"assets/badges/badge_10.png",leader:"assets/leaders/leader_10.png"},
+    {badge:"assets/badges/badge_11.png",leader:"assets/leaders/leader_11.png"},
+    {badge:"assets/badges/badge_12.png",leader:"assets/leaders/leader_12.png"},
+    {badge:"assets/badges/badge_13.png",leader:"assets/leaders/leader_13.png"},
+    {badge:"assets/badges/badge_14.png",leader:"assets/leaders/leader_14.png"},
+    {badge:"assets/badges/badge_15.png",leader:"assets/leaders/leader_15.png"},
+    {badge:"assets/badges/badge_16.png",leader:"assets/leaders/leader_16.png"},
+    {badge:"assets/badges/badge_17.png",leader:"assets/leaders/leader_17.png"},
+    {badge:"assets/badges/badge_18.png",leader:"assets/leaders/leader_18.png"},
+    {badge:"assets/badges/badge_19.png",leader:"assets/leaders/leader_19.png"}
+];
+
+// 音頻資源路徑
+const pokeCryUrls = [
+    "assets/audio/bulbasaur_cry.opus",
+    "assets/audio/charmander_cry.opus",
+    "assets/audio/squirtle_cry.opus",
+    "assets/audio/pikachu_cry.opus",
+    "assets/audio/eevee_cry.opus"
+];
+
+// ===================== 資源預加載（優化邏輯+超時兜底）=====================
 const loadingText = document.getElementById("loadingText");
 const loadingProgress = document.getElementById("loadingProgress");
 const startBtn = document.getElementById("startBtn");
+let loadFinished = false;
 
 function preloadAllResources() {
     const imageUrls = [];
     const audioUrls = [];
 
-    // 收集所有圖片資源
+    // 只預加載核心必用圖片，徽章館主懶加載，避免大量請求卡住
     imageUrls.push("assets/start-bg.png");
     imageUrls.push("assets/wikilogo.png");
     imageUrls.push("assets/pokemon-title.jpg");
@@ -725,12 +764,8 @@ function preloadAllResources() {
         imageUrls.push(p.cellUrl);
         imageUrls.push(p.superUrl);
     });
-    levelBadgeData.forEach(d => {
-        imageUrls.push(d.badge);
-        imageUrls.push(d.leader);
-    });
 
-    // 收集所有音訊資源
+    // 預加載音訊
     audioUrls.push(...pokeCryUrls);
     audioUrls.push("assets/audio/bgm.opus");
 
@@ -738,14 +773,13 @@ function preloadAllResources() {
     let loaded = 0;
 
     function updateProgress() {
+        if (loadFinished) return;
         loaded++;
         const percent = Math.floor((loaded / total) * 100);
         loadingProgress.style.width = percent + "%";
-        loadingText.innerText = `資源載入中 ${percent}%`;
         
         if (loaded >= total) {
-            loadingText.innerText = "載入完成！點擊開始遊戲";
-            startBtn.disabled = false;
+            finishLoading();
         }
     }
 
@@ -753,7 +787,7 @@ function preloadAllResources() {
     imageUrls.forEach(url => {
         const img = new Image();
         img.onload = updateProgress;
-        img.onerror = updateProgress; // 載入失敗也繼續，避免卡住
+        img.onerror = updateProgress;
         img.src = url;
     });
 
@@ -765,17 +799,24 @@ function preloadAllResources() {
         audio.onerror = updateProgress;
         audio.src = url;
     });
+
+    // 超時兜底：3秒後強制解鎖，避免極端情況卡住
+    setTimeout(() => {
+        if (!loadFinished) {
+            finishLoading();
+        }
+    }, 3000);
 }
 
-// ===================== 音頻資源 =====================
-const pokeCryUrls = [
-    "assets/audio/bulbasaur_cry.opus",
-    "assets/audio/charmander_cry.opus",
-    "assets/audio/squirtle_cry.opus",
-    "assets/audio/pikachu_cry.opus",
-    "assets/audio/eevee_cry.opus"
-];
+function finishLoading() {
+    if (loadFinished) return;
+    loadFinished = true;
+    loadingProgress.style.width = "100%";
+    loadingText.innerText = "加載完成！點擊開始遊戲";
+    startBtn.disabled = false;
+}
 
+// ===================== 音頻相關 =====================
 const pokeCries = pokeCryUrls.map(url => {
     const audio = new Audio();
     audio.src = url;
@@ -808,7 +849,7 @@ function initBGM() {
     });
 }
 
-// ===================== Web Audio 合成音效 =====================
+// Web Audio 合成音效
 let audioCtx = null;
 let soundOn = true;
 let bgmPlaying = false;
@@ -977,30 +1018,7 @@ function toggleSound() {
     else stopBGM();
 }
 
-// ===================== 道館徽章數據 =====================
-const levelBadgeData = [
-    {badge:"assets/badges/badge_0.png",leader:"assets/leaders/leader_0.png"},
-    {badge:"assets/badges/badge_1.png",leader:"assets/leaders/leader_1.png"},
-    {badge:"assets/badges/badge_2.png",leader:"assets/leaders/leader_2.png"},
-    {badge:"assets/badges/badge_3.png",leader:"assets/leaders/leader_3.png"},
-    {badge:"assets/badges/badge_4.png",leader:"assets/leaders/leader_4.png"},
-    {badge:"assets/badges/badge_5.png",leader:"assets/leaders/leader_5.png"},
-    {badge:"assets/badges/badge_6.png",leader:"assets/leaders/leader_6.png"},
-    {badge:"assets/badges/badge_7.png",leader:"assets/leaders/leader_7.png"},
-    {badge:"assets/badges/badge_8.png",leader:"assets/leaders/leader_8.png"},
-    {badge:"assets/badges/badge_9.png",leader:"assets/leaders/leader_9.png"},
-    {badge:"assets/badges/badge_10.png",leader:"assets/leaders/leader_10.png"},
-    {badge:"assets/badges/badge_11.png",leader:"assets/leaders/leader_11.png"},
-    {badge:"assets/badges/badge_12.png",leader:"assets/leaders/leader_12.png"},
-    {badge:"assets/badges/badge_13.png",leader:"assets/leaders/leader_13.png"},
-    {badge:"assets/badges/badge_14.png",leader:"assets/leaders/leader_14.png"},
-    {badge:"assets/badges/badge_15.png",leader:"assets/leaders/leader_15.png"},
-    {badge:"assets/badges/badge_16.png",leader:"assets/leaders/leader_16.png"},
-    {badge:"assets/badges/badge_17.png",leader:"assets/leaders/leader_17.png"},
-    {badge:"assets/badges/badge_18.png",leader:"assets/leaders/leader_18.png"},
-    {badge:"assets/badges/badge_19.png",leader:"assets/leaders/leader_19.png"}
-];
-
+// ===================== 過場與提示 =====================
 function showLevelUpOverlay(level) {
     const data = levelBadgeData[level - 1] || null;
     const badgeImg = document.getElementById("badgeImg");
@@ -1033,7 +1051,7 @@ const skillBarDots = document.getElementById("skillBarDots").children;
 function renderSkillBar() {
     if (skillCombo === 0 || currentComboPoke === null) {
         skillBarIcon.classList.remove("active");
-        skillBarIcon.src = pokeList[0].cellUrl; // 預設顯示第一個，半透明
+        skillBarIcon.src = pokeList[0].cellUrl;
         for (let dot of skillBarDots) {
             dot.style.background = "rgba(255,255,255,0.2)";
             dot.style.borderColor = "rgba(255,255,255,0.4)";
@@ -1070,7 +1088,6 @@ function addSkillProgress(mainPokeType) {
         if (mainPokeType === currentComboPoke) {
             skillCombo = Math.min(skillCombo + 1, SKILL_MAX);
         } else {
-            // 消除其他種類，重置為新的種類1格
             currentComboPoke = mainPokeType;
             skillCombo = 1;
         }
@@ -1088,21 +1105,16 @@ function triggerUltimate(pokeIndex) {
     isUltimateActive = true;
     const poke = pokeList[pokeIndex];
     
-    // 同時播放寶可夢叫聲 + 大招音效
     playPokeCry(pokeIndex);
     playUltimateSound(pokeIndex);
     
-    // 顯示技能文字
     ultimateText.innerText = poke.skillName;
     ultimateText.style.color = poke.skillColor;
     ultimateOverlay.style.display = "flex";
     
-    // 生成滿屏粒子特效
     createUltimateParticles(poke.particleColor);
     
-    // 1.2秒後執行清屏邏輯
     setTimeout(() => {
-        // 清除所有非該寶可夢的格子
         for (let y = 0; y < row; y++) {
             for (let x = 0; x < col; x++) {
                 if (grid[y][x] !== pokeIndex) {
@@ -1112,17 +1124,14 @@ function triggerUltimate(pokeIndex) {
             }
         }
         
-        // 重置進度
         currentComboPoke = null;
         skillCombo = 0;
         renderSkillBar();
         
-        // 刷新畫面 + 下落填充
         render();
         dropBlock();
         fillEmpty();
         
-        // 2秒後文字消失，繼續連鎖檢查
         setTimeout(() => {
             ultimateOverlay.style.display = "none";
             isUltimateActive = false;
@@ -1155,7 +1164,7 @@ function createUltimateParticles(color) {
     }
 }
 
-// ===================== 遊戲全域變數 =====================
+// ===================== 遊戲核心邏輯 =====================
 let col = 8, row = 8;
 let grid = [];
 let shineGrid = [];
@@ -1246,7 +1255,6 @@ function generateLine(){
 
 function initBoard(){
     setColByLevel();
-    // 重置大招進度
     currentComboPoke = null;
     skillCombo = 0;
     renderSkillBar();
@@ -1267,7 +1275,6 @@ function initBoard(){
 function startTimer(){
     clearInterval(timeTimer);
     clearInterval(tickInterval);
-    // 每關累加5秒：基礎60 + (關卡-1)*5
     timeLeft = 60 + (level - 1) * 5;
     timeText.className="time-text";
     timeDom.innerText=timeLeft;
@@ -1420,7 +1427,6 @@ function executeClear(set){
     let arr=Array.from(set);
     render(arr);
     
-    // 統計本次消除數量最多的寶可夢類型
     const typeCount = {};
     arr.forEach(p => {
         let [x,y] = p.split(",").map(Number);
@@ -1430,7 +1436,6 @@ function executeClear(set){
         }
     });
 
-    // 找出數量最多的類型作為本次主力
     let mainType = null;
     let maxCount = 0;
     for (const type in typeCount) {
@@ -1449,7 +1454,6 @@ function executeClear(set){
             shineGrid[y][x]=null;
         });
 
-        // 增加大招進度
         if (mainType !== null) {
             addSkillProgress(mainType);
         }
@@ -1560,7 +1564,6 @@ function useOhw(){
 
 function nextLevel(){
     clearCount++;
-    // 每通關一次就增加 1 次大木博士
     ohwNum++;
     showAddOhTip();
     level++;
@@ -1591,7 +1594,7 @@ function restartGame(){
     initBoard();
 }
 
-// 頁面載入完成後開始預加載資源
+// 頁面載入完成後開始預加載
 window.addEventListener("load", preloadAllResources);
 </script>
 </body>
