@@ -26,7 +26,7 @@
     .start-mask {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.85) url("assets/start-bg.png") center / cover no-repeat;
+        background: rgba(0,0,0,0.85) url("https://s1.52poke.com/wiki/thumb/2/2b/%E5%8A%A8%E7%94%BB%E9%A6%96%E4%BD%9C_%E6%97%A5%E6%9C%AC_%E6%B5%B7%E6%8A%A53%EF%BC%88%E6%97%A0%E6%96%87%E5%AD%97%EF%BC%89.png/421px-%E5%8A%A8%E7%94%BB%E9%A6%96%E4%BD%9C_%E6%97%A5%E6%9C%AC_%E6%B5%B7%E6%8A%A53%EF%BC%88%E6%97%A0%E6%96%87%E5%AD%97%EF%BC%89.png?20230612145226") center / cover no-repeat;
         z-index: 99999;
         display: flex;
         flex-direction: column;
@@ -490,8 +490,8 @@
 </div>
 
 <h1>
-    <img class="title-logo" src="assets/wikilogo.png" alt="寶可夢標誌">
-    <img class="title-pokemon-text" src="assets/pokemon-title.jpg" alt="神奇寶貝">
+    <img class="title-logo" src="https://s1.52poke.com/wiki/thumb/4/4b/Wikilogo.png/80px-Wikilogo.png" alt="寶可夢標誌">
+    <img class="title-pokemon-text" src="https://megapx-assets.dcard.tw/images/dd992d04-53a5-452b-92fb-48244e106cce/640.jpeg" alt="神奇寶貝">
     碰碰碰
 </h1>
 
@@ -505,7 +505,7 @@
 
 <div class="mode-group">
     <button class="mode-btn" onclick="toggleView()">電腦/手機</button>
-    <button class="sound-btn" id="soundBtn">音效開關</button>
+    <button class="sound-btn" id="soundBtn">音效開關（開）</button>
     <button class="reset-btn" onclick="restartGame()">重新開始</button>
 </div>
 
@@ -528,83 +528,94 @@
 </div>
 
 <script>
-// ===================== 音頻資源預加載 =====================
-// 寶可夢真實叫聲（對應順序：妙蛙種子、小火龍、傑尼龜、皮卡丘、伊布）
-const pokeCryUrls = [
-    "audio/bulbasaur_cry.opus",
-    "audio/charmander_cry.opus",
-    "audio/squirtle_cry.opus",
-    "audio/pikachu_cry.opus",
-    "audio/eevee_cry.opus"
-];
-
-const pokeCries = pokeCryUrls.map(url => {
-    const audio = new Audio();
-    audio.src = url;
-    audio.volume = 0.6;
-    audio.preload = "auto";
-    audio.crossOrigin = "anonymous";
-    return audio;
-});
-
-// 官方背景音樂 - 改進加載機制
-let bgmAudio = null;
-
-function initBGM() {
-    if (bgmAudio) return;
-    bgmAudio = new Audio();
-    bgmAudio.src = "audio/bgm.mp3";
-    bgmAudio.loop = true;
-    bgmAudio.volume = 0.25;
-    bgmAudio.preload = "auto";
-    bgmAudio.crossOrigin = "anonymous";
-    
-    // 監聽加載狀態
-    bgmAudio.addEventListener('loadstart', () => console.log('BGM 開始加載...'));
-    bgmAudio.addEventListener('canplay', () => console.log('BGM 已準備就緒'));
-    bgmAudio.addEventListener('error', (e) => {
-        console.error('BGM 加載失敗:', e);
-        startSynthBGM();
-    });
-}
-
-// ===================== Web Audio 合成音效（降級備用） =====================
+// ===================== Web Audio 音訊系統（二進位解碼版） =====================
 let audioCtx = null;
 let soundOn = true;
 let bgmPlaying = false;
-let bgmInterval = null;
+let bgmInterval = null; // 合成BGM計時器
 let audioUnlocked = false;
 let tickInterval = null;
 
+// 音訊緩存（解碼後的音頻數據）
+let bgmBuffer = null;
+let bgmSource = null;
+let bgmGain = null;
+const cryBuffers = [null, null, null, null, null];
+const cryUrls = [
+    "audio/0002_cry.opus", // 妙蛙種子
+    "audio/0001_cry.opus", // 小火龍
+    "audio/0010_cry.opus", // 傑尼龜
+    "audio/0025O_cry.opus",// 皮卡丘
+    "audio/0017_cry.opus"  // 伊布
+];
+const bgmUrl = "audio/bgm.opus";
+
+// 初始化音訊上下文
 function initAudioContext() {
     if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    bgmGain = audioCtx.createGain();
+    bgmGain.gain.value = 0.25;
+    bgmGain.connect(audioCtx.destination);
+}
+
+// 通用：加載並解碼音訊檔案
+async function loadAudioBuffer(url) {
     try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const arrayBuf = await res.arrayBuffer();
+        return await audioCtx.decodeAudioData(arrayBuf);
     } catch (e) {
-        console.error('AudioContext 初始化失敗:', e);
+        console.warn("音訊解碼失敗:", url, e);
+        return null;
     }
 }
 
+// 初始化背景音樂（非同步載入）
+async function initBGM() {
+    if (bgmBuffer !== null) return;
+    bgmBuffer = await loadAudioBuffer(bgmUrl);
+    if (!bgmBuffer) {
+        console.warn("BGM 解碼失敗，將使用合成音效");
+    }
+}
+
+// 初始化寶可夢叫聲（非同步載入）
+async function initCryAudio() {
+    for (let i = 0; i < cryUrls.length; i++) {
+        if (cryBuffers[i]) continue;
+        cryBuffers[i] = await loadAudioBuffer(cryUrls[i]);
+    }
+}
+
+// 播放單次短音效（用於叫聲、操作音）
+function playBuffer(buffer, volume = 0.6) {
+    if (!soundOn || !audioCtx || !buffer) return false;
+    const source = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start(0);
+    return true;
+}
+
+// 基礎合成音（通用備用）
 function playTone(freq, duration, type = "square", vol = 0.3, delay = 0) {
     if (!soundOn || !audioCtx) return;
-    try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        const startTime = audioCtx.currentTime + delay;
-        osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(vol, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-    } catch (e) {
-        console.error('播放音調失敗:', e);
-    }
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    const startTime = audioCtx.currentTime + delay;
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(vol, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
 }
 
 // 消除音效
@@ -680,19 +691,14 @@ function playPokeCrySynth(index) {
 }
 
 function playPokeCry(index) {
-    if (!soundOn) return;
-    if (index < 0 || index >= pokeCries.length) {
+    if (!soundOn || !audioUnlocked) return;
+    const buf = cryBuffers[index];
+    if (!buf || !playBuffer(buf, 0.6)) {
         playPokeCrySynth(index);
-        return;
     }
-    const cry = pokeCries[index];
-    cry.currentTime = 0;
-    cry.play().catch(() => {
-        playPokeCrySynth(index);
-    });
 }
 
-// ===== BGM 控制（優先官方音檔，失敗自動降級合成版） =====
+// ===== BGM 控制（優先真實音檔，失敗自動降級合成版） =====
 function startSynthBGM() {
     if (bgmPlaying || !audioCtx) return;
     bgmPlaying = true;
@@ -705,26 +711,31 @@ function startSynthBGM() {
 }
 
 function startBGM() {
-    if (bgmPlaying || !soundOn) return;
+    if (bgmPlaying || !soundOn || !audioUnlocked) return;
+    bgmPlaying = true;
     
-    if (!bgmAudio) {
-        initBGM();
+    // 優先播放解碼好的真實BGM
+    if (bgmBuffer) {
+        bgmSource = audioCtx.createBufferSource();
+        bgmSource.buffer = bgmBuffer;
+        bgmSource.loop = true;
+        bgmSource.connect(bgmGain);
+        bgmSource.start(0);
+        return;
     }
     
-    bgmPlaying = true;
-    bgmAudio.currentTime = 0;
-    
-    bgmAudio.play().catch((err) => {
-        console.error('BGM 播放失敗，使用合成音樂:', err);
-        startSynthBGM();
-    });
+    // 還沒解碼完成或解碼失敗，用合成版
+    startSynthBGM();
 }
 
 function stopBGM() {
     bgmPlaying = false;
-    if (bgmAudio) {
-        bgmAudio.pause();
+    // 停止真實BGM
+    if (bgmSource) {
+        try { bgmSource.stop(); } catch(e) {}
+        bgmSource = null;
     }
+    // 停止合成BGM
     clearInterval(bgmInterval);
 }
 
@@ -739,26 +750,26 @@ function toggleSound() {
 
 // ===================== 道館徽章完整數據 =====================
 const levelBadgeData = [
-    {badge:"assets/badges/badge_0.png",leader:"assets/leaders/leader_0.png"},
-    {badge:"assets/badges/badge_1.png",leader:"assets/leaders/leader_1.png"},
-    {badge:"assets/badges/badge_2.png",leader:"assets/leaders/leader_2.png"},
-    {badge:"assets/badges/badge_3.png",leader:"assets/leaders/leader_3.png"},
-    {badge:"assets/badges/badge_4.png",leader:"assets/leaders/leader_4.png"},
-    {badge:"assets/badges/badge_5.png",leader:"assets/leaders/leader_5.png"},
-    {badge:"assets/badges/badge_6.png",leader:"assets/leaders/leader_6.png"},
-    {badge:"assets/badges/badge_7.png",leader:"assets/leaders/leader_7.png"},
-    {badge:"assets/badges/badge_8.png",leader:"assets/leaders/leader_8.png"},
-    {badge:"assets/badges/badge_9.png",leader:"assets/leaders/leader_9.png"},
-    {badge:"assets/badges/badge_10.png",leader:"assets/leaders/leader_10.png"},
-    {badge:"assets/badges/badge_11.png",leader:"assets/leaders/leader_11.png"},
-    {badge:"assets/badges/badge_12.png",leader:"assets/leaders/leader_12.png"},
-    {badge:"assets/badges/badge_13.png",leader:"assets/leaders/leader_13.png"},
-    {badge:"assets/badges/badge_14.png",leader:"assets/leaders/leader_14.png"},
-    {badge:"assets/badges/badge_15.png",leader:"assets/leaders/leader_15.png"},
-    {badge:"assets/badges/badge_16.png",leader:"assets/leaders/leader_16.png"},
-    {badge:"assets/badges/badge_17.png",leader:"assets/leaders/leader_17.png"},
-    {badge:"assets/badges/badge_18.png",leader:"assets/leaders/leader_18.png"},
-    {badge:"assets/badges/badge_19.png",leader:"assets/leaders/leader_19.png"}
+    {badge:"https://s1.52poke.com/wiki/thumb/c/ca/%E7%81%B0%E8%89%B2_Badge.png/40px-%E7%81%B0%E8%89%B2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/9/91/%E5%B0%8F%E5%89%9B_LPLE.png/57px-%E5%B0%8F%E5%89%9B_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/0/0f/%E8%93%9D%E8%89%B2_Badge.png/40px-%E8%93%9D%E8%89%B2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/1/13/%E5%B0%8F%E9%9C%9E_LPLE.png/102px-%E5%B0%8F%E9%9C%9E_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/2/28/%E6%A9%99%E8%89%B2_Badge.png/40px-%E6%A9%99%E8%89%B2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/9/90/%E9%A6%AC%E5%BF%97%E5%A3%AB_LPLE.png/108px-%E9%A6%AC%E5%BF%97%E5%A3%AB_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/5/56/%E5%BD%A9%E8%99%B9_Badge.png/40px-%E5%BD%A9%E8%99%B9_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/0/05/%E8%8E%89%E4%BD%B3_LPLE.png/59px-%E8%8E%89%E4%BD%B3_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/a/af/%E7%B2%89%E7%BA%A2_Badge.png/40px-%E7%B2%89%E7%BA%A2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/6/60/%E9%98%BF%E6%A1%94_LPLE.png/130px-%E9%98%BF%E6%A1%94_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/a/af/%E7%B2%89%E7%BA%A2_Badge.png/40px-%E7%B2%89%E7%BA%A2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/d/d6/%E9%98%BF%E6%9D%8F_HGSS.png/113px-%E9%98%BF%E6%9D%8F_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/5/5a/%E9%87%91%E8%89%B2_Badge.png/40px-%E9%87%91%E8%89%B2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/7/7d/%E5%A8%9C%E5%A7%BF_LPLE.png/108px-%E5%A8%9C%E5%A7%BF_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/b/b4/%E6%B7%B1%E7%BA%A2_Badge.png/40px-%E6%B7%B1%E7%BA%A2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/1/1b/%E5%A4%8F%E4%BC%AF_LPLE.png/98px-%E5%A4%8F%E4%BC%AF_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/2/2a/%E7%BB%BF%E8%89%B2_Badge.png/40px-%E7%BB%BF%E8%89%B2_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/9/93/%E5%9D%82%E6%9C%A8_LPLE.png/119px-%E5%9D%82%E6%9C%A8_LPLE.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/b/b1/%E9%A3%9E%E7%BF%BC_Badge.png/40px-%E9%A3%9E%E7%BF%BC_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/f/f1/%E9%98%BF%E9%80%9F_HGSS.png/87px-%E9%98%BF%E9%80%9F_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/6/60/%E6%98%86%E8%99%AB_Badge.png/40px-%E6%98%86%E8%99%AB_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/8/80/%E9%98%BF%E7%AC%94_HGSS.png/69px-%E9%98%BF%E7%AC%94_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/9/9c/%E5%B8%B8%E8%A7%84_Badge.png/40px-%E5%B8%B8%E8%A7%84_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/9/94/%E5%B0%8F%E8%8C%9C_HGSS.png/97px-%E5%B0%8F%E8%8C%9C_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/3/30/%E5%B9%BB%E5%BD%B1_Badge.png/40px-%E5%B9%BB%E5%BD%B1_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/9/94/%E5%B0%8F%E8%8C%9C_HGSS.png/97px-%E5%B0%8F%E8%8C%9C_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/3/30/%E5%B9%BB%E5%BD%B1_Badge.png/40px-%E5%B9%BB%E5%BD%B1_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/f/f9/%E6%9D%BE%E8%91%89_HGSS.png/65px-%E6%9D%BE%E8%91%89_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/d/d6/%E6%89%93%E5%87%BB_Badge.png/40px-%E6%89%93%E5%87%BB_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/d/dc/%E9%98%BF%E5%9B%9B_HGSS.png/123px-%E9%98%BF%E5%9B%9B_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/f/f9/%E9%92%A2%E9%93%81_Badge.png/40px-%E9%92%A2%E9%93%81_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/6/6f/%E9%98%BF%E8%9C%9C_HGSS.png/52px-%E9%98%BF%E8%9C%9C_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/d/d2/%E5%86%B0%E9%9B%AA_Badge.png/40px-%E5%86%B0%E9%9B%AA_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/7/75/%E6%9F%B3%E4%BC%AF_HGSS.png/63px-%E6%9F%B3%E4%BC%AF_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/c/c7/%E5%8D%87%E9%BE%99_Badge.png/40px-%E5%8D%87%E9%BE%99_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/b/b0/%E5%B0%8F%E6%A4%BF_HGSS.png/103px-%E5%B0%8F%E6%A4%BF_HGSS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/b/b9/%E5%B2%A9%E7%9F%B3_Badge.png/40px-%E5%B2%A9%E7%9F%B3_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/0/01/%E6%9D%9C%E5%A8%9F_ORAS.png/79px-%E6%9D%9C%E5%A8%9F_ORAS.png"},
+    {badge:"https://s1.52poke.com/wiki/thumb/6/6b/%E6%8B%B3%E5%87%BB_Badge.png/40px-%E6%8B%B3%E5%87%BB_Badge.png",leader:"https://s1.52poke.com/wiki/thumb/0/04/%E8%97%A4%E6%A0%91_ORAS.png/85px-%E8%97%A4%E6%A0%91_ORAS.png"}
 ];
 
 function showLevelUpOverlay(level) {
@@ -788,13 +799,13 @@ function showAddOhTip() {
 
 // ===================== 遊戲全域變數 =====================
 const pokeList = [
-    {name:"妙蛙種子",cellUrl:"assets/pokemon/bulbasaur_cell.png",superUrl:"assets/pokemon/bulbasaur_super.png",big:true},
-    {name:"小火龍",cellUrl:"assets/pokemon/charmander_cell.png",superUrl:"assets/pokemon/charmander_super.png",big:true},
-    {name:"傑尼龜",cellUrl:"assets/pokemon/squirtle_cell.png",superUrl:"assets/pokemon/squirtle_super.png",big:true},
-    {name:"皮卡丘",cellUrl:"assets/pokemon/pikachu_cell.png",superUrl:"assets/pokemon/pikachu_super.png",big:false},
-    {name:"伊布",cellUrl:"assets/pokemon/eevee_cell.png",superUrl:"assets/pokemon/eevee_super.png",big:false}
+    {name:"妙蛙種子",cellUrl:"https://media.52poke.com/wiki/2/2c/Spr_4h_001.png",superUrl:"https://s1.52poke.com/wiki/thumb/9/9f/%E5%B0%8F%E6%99%BA_%E5%A6%99%E8%9B%99%E7%A7%8D%E5%AD%90.png/250px-%E5%B0%8F%E6%99%BA_%E5%A6%99%E8%9B%99%E7%A7%8D%E5%AD%90.png",big:true},
+    {name:"小火龍",cellUrl:"https://media.52poke.com/wiki/9/99/Spr_4h_004.png",superUrl:"https://s1.52poke.com/wiki/thumb/4/48/%E5%A4%9A%E7%BE%85%E5%B7%B4_%E5%B0%8F%E7%81%AB%E9%BE%8D.png/250px-%E5%A4%9A%E7%BE%85%E5%B7%B4_%E5%B0%8F%E7%81%AB%E9%BE%8D.png",big:true},
+    {name:"傑尼龜",cellUrl:"https://media.52poke.com/wiki/1/1f/Spr_4h_007.png",superUrl:"https://s1.52poke.com/wiki/thumb/d/dc/%E6%8F%90%E8%80%B6%E9%AD%AF%E8%AB%BE_%E5%82%91%E5%B0%BC%E9%BE%9C.png/250px-%E6%8F%90%E8%80%B6%E9%AD%AF%E8%AB%BE_%E5%82%91%E5%B0%BC%E9%BE%9C.png",big:true},
+    {name:"皮卡丘",cellUrl:"https://media.52poke.com/wiki/7/7a/Spr_6x_025_m.png",superUrl:"https://s1.52poke.com/wiki/thumb/5/52/%E5%B0%8F%E6%99%BA_%E7%9A%AE%E5%8D%A1%E4%B8%98.png/240px-%E5%B0%8F%E6%99%BA_%E7%9A%AE%E5%8D%A1%E4%B8%98.png",big:false},
+    {name:"伊布",cellUrl:"https://media.52poke.com/wiki/d/d2/Spr_6x_133.png",superUrl:"https://s1.52poke.com/wiki/thumb/f/fa/%E4%BC%8A%E5%88%A9%E9%A9%AC_%E4%BC%8A%E5%B8%83.png/250px-%E4%BC%8A%E5%88%A9%E9%A9%AC_%E4%BC%8A%E5%B8%83.png",big:false}
 ];
-const ohwUrl = "assets/professor-oak.png";
+const ohwUrl = "https://s1.52poke.com/wiki/thumb/3/32/%E5%A4%A7%E6%9C%A8%E5%8D%9A%E5%A3%AB_LPLE.png/264px-%E5%A4%A7%E6%9C%A8%E5%8D%9A%E5%A3%AB_LPLE.png?20230530063311";
 
 let col = 8, row = 8;
 let grid = [];
@@ -828,7 +839,13 @@ soundBtn.addEventListener("click", toggleSound);
 
 function handleStartGame() {
     initAudioContext();
+    // 恢復音訊上下文，解決部分瀏覽器自動掛起問題
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    // 使用者互動後才非同步載入音訊，符合自動播放政策
     initBGM();
+    initCryAudio();
     audioUnlocked = true;
     playTone(440, 0.01, "sine", 0.01);
     startMask.classList.add("hidden");
@@ -1192,11 +1209,10 @@ function restartGame(){
     clearInterval(timeTimer);
     clearInterval(tickInterval);
     closeModal();
-    // 重置BGM
-    if(bgmPlaying){
-        stopBGM();
-    }
-    if(soundOn) startBGM();
+    // 重置BGM狀態
+    stopBGM();
+    bgmPlaying = false;
+    if(soundOn && audioUnlocked) startBGM();
     initBoard();
 }
 </script>
