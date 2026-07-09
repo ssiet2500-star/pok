@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>神奇寶貝碰碰碰</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft JhengHei", sans-serif; }
+    body {
+        background: radial-gradient(circle, #3488eb 0%, #052a63 100%);
+        display: flex; flex-direction: column; align-items: center;
+        padding: 12px 8px; min-height: 100vh; overflow-x: hidden;
+    }
+    .start-mask {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.85) url("assets/start-bg.png") center / cover no-repeat;
+        z-index: 99999; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 24px;
+    }
+    .start-title {
+        font-size: 52px; color: #ffd700; font-weight: bold;
+        text-shadow: 4px 4px #ff2222, 0 0 24px #ffd700;
+        text-align: center; line-height: 1.2;
+    }
+    .game-intro {
+        color: white; text-align: left; background: rgba(0,0,0,0.55);
+        padding: 16px 22px; border-radius: 10px; max-width: 380px;
+        line-height: 1.7; font-size: 14px; backdrop-filter: blur(4px);
+    }
+    .game-intro h3 { color: #ffd700; margin-bottom: 8px; text-align: center; font-size: 18px; }
+    .game-intro ul { padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+    .loading-bar-wrap { width: 320px; text-align: center; }
+    .loading-text {
+        margin-bottom: 10px; font-size: 18px; font-weight: bold; color: #ffd700;
+        text-shadow: 0 0 8px rgba(255,215,0,0.6); letter-spacing: 2px;
+    }
+    .loading-bar {
+        width: 100%; height: 12px; background: rgba(255,255,255,0.2);
+        border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.3);
+    }
+    .loading-progress {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, #ffd700, #ffaa00);
+        transition: width 0.3s ease; box-shadow: 0 0 10px #ffd700;
+    }
+    .start-btn {
+        padding: 21px 48px; font-size: 30px; line-height: 1.4;
+        border: none; border-radius: 12px; background: #ffd700;
+        color: #000; font-weight: bold; cursor: pointer; transition: 0.2s;
+    }
+    .start-btn:disabled { background: #888; cursor: not-allowed; transform: none !important; opacity: 0.7; }
+    .start-btn:hover:not(:disabled) { transform: scale(1.08); }
+    .copyright-text { position: absolute; bottom: 20px; color: #000; font-size: 14px; font-weight: bold; letter-spacing: 1px; }
+    .start-mask.hidden { display: none; pointer-events: none; }
+    .level-up-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+        z-index: 99998; display: none; align-items: center;
+        justify-content: center; flex-direction: column; gap: 14px; padding: 20px;
+    }
+    .level-up-overlay.show { display: flex; }
+    .level-up-images { display: flex; align-items: center; gap: 24px; justify-content: center; flex-wrap: wrap; }
+    .badge-img { width: 90px; height: 90px; object-fit: contain; }
+    .gym-leader-img { width: 220px; height: 220px; object-fit: contain; }
+    .level-up-text { color: #ffd700; font-size: 22px; font-weight: bold; text-shadow: 2px 2px #000; }
+    .level-quote {
+        color: #fff; font-size: 16px; max-width: 420px; text-align: center;
+        line-height: 1.7; text-shadow: 1px 1px 2px #000; font-style: italic;
+    }
+    .game-over-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+        z-index: 99998; display: none; align-items: center;
+        justify-content: center; flex-direction: column; gap: 18px; padding: 20px;
+    }
+    .game-over-overlay.show { display: flex; }
+    .game-over-text { color: #fff; font-size: 20px; font-weight: bold; text-shadow: 2px 2px #000; text-align: center; max-width: 320px; line-height: 1.5; }
+    .joy-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+        z-index: 99997; display: none; align-items: center;
+        justify-content: center; flex-direction: column; gap: 20px; pointer-events: none;
+    }
+    .joy-img { width: 70vw; max-width: 320px; height: auto; object-fit: contain; animation: superSlideInOut 2s ease-in-out forwards; }
+    .joy-text { color: #ffd700; font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000, 0 0 12px #ffd700; animation: fadeInOut 2s ease-in-out forwards; }
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: scale(0.8); }
+        20% { opacity: 1; transform: scale(1); }
+        80% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.1); }
+    }
+    @keyframes superSlideInOut {
+        0% { transform: translateX(-120vw) scale(0.2); opacity: 0; }
+        35% { transform: translateX(0) scale(1); opacity: 1; }
+        65% { transform: translateX(0) scale(1); opacity: 1; }
+        100% { transform: translateX(120vw) scale(1); opacity: 0; }
+    }
+    .gold-flash-overlay {
+        position: fixed; inset: 0;
+        background: radial-gradient(circle, #fff9c4 0%, #ffd700 50%, #ffaa00 100%);
+        opacity: 0; pointer-events: none; z-index: 99996;
+    }
+    .gold-flash-overlay.play { animation: goldFlash 0.5s ease-in-out forwards; }
+    @keyframes goldFlash { 0% { opacity: 0; } 50% { opacity: 0.85; } 100% { opacity: 0; } }
+    .add-oh-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+        z-index: 99997; display: none; align-items: center; justify-content: center;
+    }
+    .add-oh-text { font-size: 36px; color: #36d399; font-weight: bold; text-shadow: 0 0 10px #36d399; animation: flashGreen 0.4s infinite; }
+    @keyframes flashGreen { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+    .add-oh-overlay.show { display: flex; }
+    h1 { color: #fff; text-shadow: 2px 2px #ff7700; font-size: 24px; margin-bottom: 8px; text-align: center; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .title-pokemon-text { height: 56.25px; width: auto; vertical-align: middle; }
+    .info-bar { display: flex; flex-wrap: wrap; gap: 10px 20px; color: white; font-size: 15px; margin-bottom: 10px; justify-content: center; align-items: center; }
+    .level-info { text-align: center; line-height: 1.3; }
+    .level-num { font-size: 16px; font-weight: bold; }
+    .gym-name { font-size: 14px; color: #ffd700; }
+    .level-badge { height: 26px; width: auto; margin-top: 2px; vertical-align: middle; }
+    .skill-bar-container { display: flex; align-items: center; gap: 14px; padding: 8px 18px; background: rgba(0,0,0,0.25); border-radius: 10px; margin-bottom: 10px; }
+    .skill-bar-icon { width: 38px; height: 38px; object-fit: contain; opacity: 0.35; transition: all 0.2s; }
+    .skill-bar-icon.active { opacity: 1; filter: drop-shadow(0 0 4px rgba(255,255,255,0.6)); }
+    .skill-bar-dots { display: flex; gap: 8px; }
+    .skill-bar-dot { width: 18px; height: 18px; border-radius: 3px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); transition: all 0.2s; }
+    .time-text { transition: all 0.2s; font-weight: bold; }
+    @keyframes flashYellow { 0%,100% { text-shadow: 0 0 6px #ffd700,0 0 12px #ffd700; } 50% { text-shadow: 0 0 18px #ffd700,0 0 30px #ffd700; } }
+    @keyframes flashRed { 0%,100% { text-shadow: 0 0 6px #ff2222,0 0 12px #ff2222; } 50% { text-shadow: 0 0 18px #ff2222,0 0 30px #ff2222; } }
+    .flash-yellow { color: #ffd700; animation: flashYellow 0.5s infinite; }
+    .flash-red { color: #ff4444; animation: flashRed 0.4s infinite; }
+    .mode-group, .tool-group { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; justify-content: center; }
+    button { padding: 7px 10px; font-size: 13px; border: none; border-radius: 7px; font-weight: bold; cursor: pointer; transition: 0.15s; }
+    button:active { transform: scale(0.96); }
+    .mode-btn { background: #36d399; color: #111; }
+    .tool-btn { background: #f46060; color: white; }
+    .reset-btn { background: #6677ff; color: white; }
+    .sound-btn { background: #ff9922; color: #111; }
+    .pc-view #gameBox { grid-template-columns: repeat(6, 64px) !important; }
+    .pc-view .cell { width: 64px; height: 64px; max-width: 64px; max-height: 64px; }
+    .pc-view h1 { font-size: 28px; }
+    .pc-view .title-pokemon-text { height: 67.5px; }
+    .pc-view button { padding: 10px 14px; font-size: 15px; }
+    #gameBox {
+        display: grid; gap: 4px; background: rgba(255,255,255,0.18);
+        padding: 8px; border-radius: 10px; box-shadow: 0 0 20px #0055ff55;
+        grid-template-columns: repeat(6, 14vw); position: relative;
+    }
+    .lives-container { width: 100%; max-width: calc(6*14vw + 16px); display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; padding-right: 8px; }
+    .pc-view .lives-container { max-width: calc(6*64px + 16px); }
+    .life-icon { height: 24px; width: auto; opacity: 0.95; filter: drop-shadow(0 0 2px rgba(255,215,0,0.6)); }
+    .cell {
+        width: 14vw; height: 14vw; max-width: 56px; max-height: 56px;
+        background: #fff; border-radius: 8px; display: flex;
+        align-items: center; justify-content: center; cursor: pointer;
+        user-select: none; transition: transform 0.18s ease;
+        overflow: hidden; font-size: 10px; text-align: center; position: relative;
+    }
+    .cell img { width: 90%; height: 90%; object-fit: contain; }
+    .cell img.big-sprite { width: 150%; height: 150%; transform: translateY(-1.67%); }
+    .cell.poke-ball-catch { animation: pokeBallCatch 0.45s ease-out forwards !important; z-index: 10 !important; }
+    .cell.poke-ball-catch::before {
+        content: "🔴"; position: absolute; width: 36px; height: 36px;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 36px; animation: ballBounce 0.45s ease-out forwards !important; z-index: 11 !important;
+    }
+    @keyframes pokeBallCatch {
+        0% { transform: scale(1); opacity: 1; }
+        35% { transform: scale(1.15); opacity: 1; }
+        70% { transform: scale(0.6); opacity: 0.8; }
+        100% { transform: scale(0); opacity: 0; }
+    }
+    @keyframes ballBounce {
+        0% { transform: translate(-50%,-50%) scale(0.5) rotate(0deg); }
+        45% { transform: translate(-50%,-50%) scale(1.2) rotate(-10deg); }
+        80% { transform: translate(-50%,-50%) scale(0.9) rotate(5deg); }
+        100% { transform: translate(-50%,-50%) scale(0.4) rotate(0deg); }
+    }
+    .cell.gold-shine { box-shadow: 0 0 6px 2px #ffd700, inset 0 0 4px #ffd700; }
+    .cell.red-shine { box-shadow: 0 0 6px 2px #ff2222, inset 0 0 4px #ff6666; }
+    .cell:active { transform: scale(1.05); }
+    .cell.selected { box-shadow: 0 0 0 3px #ff2222, 0 0 8px #ff3333; }
+    .empty { background: transparent !important; }
+    .super-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 9999; overflow: hidden; }
+    .super-poke-img { width: 100vw; height: 100vh; object-fit: contain; animation: superSlideInOut 0.8s ease-in-out forwards; }
+    .ultimate-overlay { position: fixed; inset: 0; z-index: 99995; display: none; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; background: rgba(0,0,0,0.6); }
+    .ultimate-img { position: absolute; width: 100vw; height: 100vh; object-fit: contain; opacity: 0; z-index: 1; }
+    .ultimate-img.play { animation: superSlideInOut 0.8s ease-in-out forwards; }
+    .ultimate-text {
+        position: relative; z-index: 2; font-size: 72px; font-weight: bold;
+        -webkit-text-stroke: 1.5px #000;
+        text-shadow: 1.5px 1.5px 0 #000, -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 0 0 20px currentColor, 0 0 40px currentColor;
+        animation: ultTextAnim 1.33s ease-out forwards;
+    }
+    @keyframes ultTextAnim { 0% { transform: scale(0.2); opacity: 0; } 30% { transform: scale(1.3); opacity: 1; } 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+    .ultimate-particle { position: absolute; border-radius: 50%; pointer-events: none; animation: particleFloat 1.5s ease-out forwards; }
+    @keyframes particleFloat { 0% { transform: scale(0) translateY(0); opacity: 1; } 100% { transform: scale(1.5) translateY(-100px); opacity: 0; } }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.78); display: none; align-items: center; justify-content: center; z-index: 999; padding: 10px; }
+    .modal-box { background: #fff; padding: 24px 16px; border-radius: 12px; text-align: center; width: 90%; max-width: 320px; }
+    .modal h2 { font-size: 22px; margin-bottom: 10px; }
+    .modal p { font-size: 16px; margin-bottom: 16px; }
+    .modal button { font-size: 16px; padding: 10px 24px; background: #2277ff; color: white; }
+    .modal-btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .joy-confirm-btn { background: #36d399 !important; color: #111 !important; }
+    .give-up-btn { background: #f46060 !important; color: white !important; }
+    .final-clear-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+        z-index: 99999; display: none; align-items: center;
+        justify-content: center; flex-direction: column; gap: 20px; padding: 20px;
+    }
+    .final-clear-overlay.show { display: flex; }
+    .final-clear-title {
+        font-size: 42px; color: #ffd700; font-weight: bold;
+        text-shadow: 3px 3px #ff2222, 0 0 20px #ffd700;
+        text-align: center; animation: titleGlow 1.5s ease-in-out infinite alternate;
+    }
+    @keyframes titleGlow { from { text-shadow: 3px 3px #ff2222, 0 0 10px #ffd700; } to { text-shadow: 3px 3px #ff2222, 0 0 30px #ffd700, 0 0 50px #ffaa00; } }
+    .final-clear-img { width: 280px; height: 280px; object-fit: contain; animation: imgBounce 2s ease-in-out infinite; }
+    @keyframes imgBounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .final-clear-text { color: white; font-size: 18px; text-align: center; line-height: 1.6; max-width: 340px; }
+    .final-clear-btn { padding: 14px 36px; font-size: 20px; background: #ffd700; color: #000; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .final-clear-btn:hover { transform: scale(1.08); }
+</style>
+</head>
+<body>
+
+<div class="start-mask" id="startMask">
+    <h2 class="start-title">神奇寶貝碰碰碰</h2>
+    <div class="game-intro">
+        <h3>遊戲說明</h3>
+        <ul>
+            <li>點擊或拖曳相鄰寶可夢交換，三個以上相同即可消除得分</li>
+            <li>連續消除同一種寶可夢滿3次，可釋放專屬全屏大招</li>
+            <li>中途消除其他寶可夢會重置大招累計進度</li>
+            <li>時間內達成目標分數通關，獲得道館徽章</li>
+            <li>卡關可使用大木博士道具隨機消除圖案</li>
+            <li>每5關獲得額外生命，最多累計5條生命</li>
+        </ul>
+    </div>
+    <div class="loading-bar-wrap">
+        <div class="loading-text" id="loadingText">遊戲載入中，請稍後～</div>
+        <div class="loading-bar"><div class="loading-progress" id="loadingProgress"></div></div>
+    </div>
+    <button class="start-btn" id="startBtn" disabled>點擊開始遊戲<br>Start Game</button>
+    <div class="copyright-text">[文心鑫品‑美金出品] V.20260708</div>
+</div>
+
+<div class="level-up-overlay" id="levelUpOverlay">
+    <div class="level-up-images">
+        <img class="badge-img" id="badgeImg" alt="徽章">
+        <img class="gym-leader-img" id="gymLeaderImg" alt="館主">
+    </div>
+    <div class="level-up-text" id="levelUpText">恭喜通關！</div>
+    <div class="level-quote" id="levelQuote"></div>
+</div>
+
+<div class="game-over-overlay" id="gameOverOverlay">
+    <img class="gym-leader-img" id="gameOverLeaderImg" alt="館主">
+    <div class="game-over-text" id="gameOverText"></div>
+</div>
+
+<div class="joy-overlay" id="joyOverlay">
+    <img class="joy-img" id="joyImg" src="assets/joy.png" alt="喬伊小姐">
+    <div class="joy-text">喬伊小姐幫你恢復生命！</div>
+</div>
+
+<div class="gold-flash-overlay" id="goldFlashOverlay"></div>
+<div class="add-oh-overlay" id="addOhOverlay"><div class="add-oh-text">大木博士次數 +1</div></div>
+
+<div class="ultimate-overlay" id="ultimateOverlay">
+    <img class="ultimate-img" id="ultimateImg" alt="技能">
+    <div class="ultimate-text" id="ultimateText"></div>
+</div>
+
+<div class="final-clear-overlay" id="finalClearOverlay">
+    <div class="final-clear-title">🏆 恭喜全破！🏆</div>
+    <img class="final-clear-img" id="finalClearImg" alt="坂木老大">
+    <div class="final-clear-text">
+        你打敗了坂木老大<br>成為最強的寶可夢訓練家！<br><br>
+        總分：<span id="finalScore" style="color:#ffd700;font-weight:bold;">0</span>
+    </div>
+    <button class="final-clear-btn" onclick="restartFromFinal()">再玩一次</button>
+</div>
+
+<h1>
+    <img class="title-pokemon-text" src="assets/pokemon-title.jpg" alt="神奇寶貝" onerror="this.style.display='none'">
+    碰碰碰
+</h1>
+
+<div class="info-bar">
+    <div class="level-info">
+        <div class="level-num" id="levelNum">第1關</div>
+        <div class="gym-name" id="gymName">深灰道館</div>
+        <img id="levelBadge" class="level-badge" src="" alt="徽章">
+    </div>
+    <div>得分：<span id="score">0</span>／<span id="target">300</span></div>
+    <div>剩餘時間：<span class="time-text" id="time">60</span>秒</div>
+</div>
+
+<div class="skill-bar-container" id="skillBarContainer">
+    <img class="skill-bar-icon" id="skillBarIcon" src="" alt="大招">
+    <div class="skill-bar-dots" id="skillBarDots">
+        <div class="skill-bar-dot"></div>
+        <div class="skill-bar-dot"></div>
+        <div class="skill-bar-dot"></div>
+    </div>
+</div>
+
+<div class="mode-group">
+    <button class="mode-btn" onclick="toggleView()">電腦／手機</button>
+    <button class="sound-btn" id="soundBtn">音效(開)</button>
+    <button class="reset-btn" onclick="restartGame()">重新開始</button>
+</div>
+
+<div class="tool-group">
+    <button class="tool-btn" id="ohwBtn" onclick="useOhw()">大木博士救救我！[2]</button>
+</div>
+
+<div id="gameBox"></div>
+<div class="lives-container" id="livesContainer"></div>
+
+<div class="super-overlay" id="superOverlay">
+    <img class="super-poke-img" id="superImg" alt="大絕">
+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-box">
+        <h2 id="modalTitle">遊戲結束</h2>
+        <p id="modalText"></p>
+        <button onclick="closeModal()">確定</button>
+    </div>
+</div>
+
+<div class="modal" id="joyConfirmModal">
+    <div class="modal-box">
+        <h2>時間到！</h2>
+        <p>還剩 <span id="remainLivesText">3</span> 條命<br>要呼叫喬伊小姐治療嗎？</p>
+        <div class="modal-btn-group">
+            <button class="joy-confirm-btn" onclick="confirmJoyHeal()">喬伊小姐救救我</button>
+            <button class="give-up-btn" onclick="giveUpGame()">我認輸了</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const TOTAL_LEVELS = 41;
+const MAX_TIME = 120;
+
+const pokeList = [
+    { name:"妙蛙種子", cellUrl:"assets/pokemon/bulbasaur_cell.png", superUrl:"assets/pokemon/bulbasaur_super.png",
+      skillImgUrl:"assets/skills/skill-bulbasaur.jpg", skillName:"飛葉快刀", skillColor:"#36d399", particleColor:"rgba(54,211,153,0.8)", big:true },
+    { name:"小火龍", cellUrl:"assets/pokemon/charmander_cell.png", superUrl:"assets/pokemon/charmander_super.png",
+      skillImgUrl:"assets/skills/skill-charmander.jpg", skillName:"噴射火焰", skillColor:"#ff4422", particleColor:"rgba(255,68,34,0.8)", big:true },
+    { name:"傑尼龜", cellUrl:"assets/pokemon/squirtle_cell.png", superUrl:"assets/pokemon/squirtle_super.png",
+      skillImgUrl:"assets/skills/skill-squirtle.jpg", skillName:"泡沫光線", skillColor:"#3399ff", particleColor:"rgba(51,153,255,0.8)", big:true },
+    { name:"皮卡丘", cellUrl:"assets/pokemon/pikachu_cell.png", superUrl:"assets/pokemon/pikachu_super.png",
+      skillImgUrl:"assets/skills/skill-pikachu.jpg", skillName:"十萬伏特", skillColor:"#ffdd00", particleColor:"rgba(255,221,0,0.8)", big:false },
+    { name:"伊布", cellUrl:"assets/pokemon/eevee_cell.png", superUrl:"assets/pokemon/eevee_super.png",
+      skillImgUrl:"assets/skills/skill-eevee.jpg", skillName:"高速星星", skillColor:"#e0e0e0", particleColor:"rgba(224,224,224,0.8)", big:false }
+];
+
+// ===== 通關台詞 =====
+const gymQuotes = [
+    "真是精彩的一戰！你值得這枚徽章，繼續加油吧！",
+    "沒想到我會輸得這麼徹底……你真的很強！",
+    "你們配合得完美無缺，恭喜你獲得勝利！",
+    "我從來沒遇過這麼厲害的挑戰者……徽章拿去吧！",
+    "作為道館館主，我為你感到驕傲。去挑戰下一位吧！",
+    "雖然輸了，但我很開心能和你對戰。這枚徽章送給你！",
+    "我承認失敗了！這是你的勝利，徽章請收下。",
+    "你的戰術超出我的預料，恭喜獲得道館徽章！",
+    "輸得心服口服！記得用這枚徽章好好證明自己。",
+    "別誤會了！我只是想測試一下挑戰者的水平，這徽章……你就拿去吧！"
+];
+const rocketQuotes = [
+    "什麼？竟然輸給了這種路邊隨處可見的傢伙……這不可能！",
+    "這一定是哪裡搞錯了！再來一次，這次我絕對不會輸！",
+    "別以為能一直這麼好運，火箭隊是不會輕易放棄的！",
+    "先撤退了！下一次見面時，一定要讓你好看！",
+    "……輸了。難道我們一直以來的戰略都錯了嗎？",
+    "這就是所謂的『正義』的力量嗎？",
+    "戰術性撤退！這只是為了迎接下一場更宏大的勝利",
+    "這次算你厲害！但我們火箭隊不會就此罷休的！",
+    "嗚哇！快撤退！把這件事報告給老大！",
+    "我們一定會回來的！"
+];
+const sakagiQuote = "火箭隊的運作不會因為我的一次落敗而停滯。這個世界……比你看到的要大得多。";
+
+function getVictoryQuote(lv) {
+    if (lv <= 20) return gymQuotes[Math.floor(Math.random() * gymQuotes.length)];
+    if (lv <= 40) return rocketQuotes[Math.floor(Math.random() * rocketQuotes.length)];
+    return sakagiQuote;
+}
+
+const gymNames = [
+    "深灰道館","華藍道館","枯葉道館","玉虹道館","淺紅道館","金黃道館","紅蓮道館","常青道館",
+    "桔梗道館","檜皮道館","滿金道館","緣朱道館","湛藍道館","淺蔥道館","卡吉道館","烟墨道館",
+    "卡那茲道館","武鬥道館","紫堇道館","綠嶺道館",
+    "火箭隊實習隊員","火箭隊隊員","火箭隊資深隊員","火箭隊小隊長","火箭隊特務",
+    "火箭隊精英幹部","火箭隊親衛隊員","火箭隊突擊隊長","火箭隊幹部總長","火箭隊基地司令",
+    "彩虹火箭隊幹部候補","彩虹火箭隊研究員","彩虹火箭隊先鋒","彩虹火箭隊特工","彩虹火箭隊遺跡獵人",
+    "彩虹火箭隊調度官","彩虹火箭隊搜查官","彩虹火箭隊特務","彩虹火箭隊訓練教官","彩虹火箭隊執行官",
+    "火箭隊總部"
+];
+
+const failLines = [
+    "結束了。你已經盡力了。","這就是極限了嗎？太可惜了。",
+    "勝利是屬於我的。下次再來挑戰吧。","你表現得不錯，但還不夠。",
+    "遊戲結束。準備好下一次了嗎？","我接受你的挑戰，但這次是我贏了。",
+    "不錯的對戰，可惜最後還是差了一點。","你很強，但今天運氣不在你這邊。",
+    "輸了吧？下次帶點真本事再來。","輕鬆取勝。下一個菜鳥誰要來？"
+];
+
+const ohwUrl = "assets/professor-oak.png";
+const joyImgUrl = "assets/joy.png";
+const SKILL_MAX = 3;
+const MAX_LIVES = 5;
+let currentComboPoke = null;
+let skillCombo = 0;
+let isUltimateActive = false;
+let lives = 3;
+let isGameTransition = false;
+let isLevelTransition = false;
+
+function getLevelBadgeData(lv) {
+    if (lv <= 20) return { badge: `assets/badges/badge_${lv-1}.png`, leader: `assets/leaders/leader_${lv-1}.png` };
+    if (lv <= 30) return { badge: "assets/badges/badge_20.png", leader: "assets/leaders/leader_20.png" };
+    if (lv <= 40) return { badge: "assets/badges/badge_21.png", leader: "assets/leaders/leader_21.png" };
+    return { badge: "assets/badges/badge_22.png", leader: "assets/leaders/leader_22.png" };
+}
+
+const pokeCryUrls = [
+    "assets/audio/bulbasaur_cry.opus","assets/audio/charmander_cry.opus",
+    "assets/audio/squirtle_cry.opus","assets/audio/pikachu_cry.opus",
+    "assets/audio/eevee_cry.opus"
+];
+const oakSoundUrl = "assets/audio/professor-oak.mp3";
+const joySoundUrl = "assets/audio/joy.mp3";
+
+// ===== 資源載入 =====
+const loadingTextEl = document.getElementById("loadingText");
+const loadingProgress = document.getElementById("loadingProgress");
+const startBtn = document.getElementById("startBtn");
+let loadFinished = false;
+
+function preloadAllResources() {
+    const imageUrls = ["assets/start-bg.png","assets/pokemon-title.jpg",ohwUrl,joyImgUrl];
+    pokeList.forEach(p => { imageUrls.push(p.cellUrl, p.superUrl, p.skillImgUrl); });
+    const total = imageUrls.length;
+    let loaded = 0;
+    function updateProgress() {
+        if (loadFinished) return;
+        loaded++;
+        loadingProgress.style.width = Math.floor(loaded/total*100) + "%";
+        if (loaded >= total) finishLoading();
+    }
+    imageUrls.forEach(url => {
+        const img = new Image();
+        img.onload = updateProgress;
+        img.onerror = updateProgress;
+        img.src = url;
+    });
+    [...pokeCryUrls,"assets/audio/bgm.opus",oakSoundUrl,joySoundUrl].forEach(url => {
+        const audio = new Audio(); audio.preload = "auto"; audio.src = url;
+    });
+}
+function finishLoading() {
+    if (loadFinished) return;
+    loadFinished = true;
+    loadingProgress.style.width = "100%";
+    loadingTextEl.innerText = "加載完成！點擊開始遊戲";
+    startBtn.disabled = false;
+}
+
+// ===== 音頻系統 =====
+const pokeCries = pokeCryUrls.map(url => { const a=new Audio(); a.src=url; a.volume=0.6; a.preload="auto"; return a; });
+const oakAudio = new Audio(); oakAudio.src = oakSoundUrl; oakAudio.volume = 0.8; oakAudio.preload = "auto";
+const joyAudio = new Audio(); joyAudio.src = joySoundUrl; joyAudio.volume = 0.8; joyAudio.preload = "auto";
+let bgmAudio = null;
+
+function initBGM() {
+    if (bgmAudio) return;
+    bgmAudio = new Audio();
+    bgmAudio.src = "assets/audio/bgm.opus";
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.35;
+    bgmAudio.preload = "auto";
+}
+function startBGM() {
+    if (bgmPlaying) return;
+    if (bgmAudio) bgmAudio.play().catch(() => startSynthBGM());
+    else startSynthBGM();
+}
+
+let audioCtx = null;
+let soundOn = true;
+let bgmPlaying = false;
+let bgmInterval = null;
+let audioUnlocked = false;
+let tickInterval = null;
+
+function initAudioContext() {
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch(e) { audioCtx = null; }
+}
+function playTone(freq, duration, type="square", vol=0.3, delay=0) {
+    if (!soundOn || !audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        const st = audioCtx.currentTime + delay;
+        osc.frequency.setValueAtTime(freq, st);
+        gain.gain.setValueAtTime(vol, st);
+        gain.gain.exponentialRampToValueAtTime(0.001, st + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(st); osc.stop(st + duration);
+    } catch(e) {}
+}
+function playClearSound() { playTone(880,0.12,"square",0.25); playTone(1320,0.12,"square",0.2,0.08); }
+function playCelebrateSound() {
+    playTone(523,0.12,"square",0.25); playTone(659,0.12,"square",0.25,0.1);
+    playTone(784,0.12,"square",0.25,0.2); playTone(1046,0.2,"square",0.25,0.3);
+}
+function playFailSound() { playTone(294,0.18,"triangle",0.3); playTone(262,0.28,"triangle",0.25,0.15); }
+function play30sAlert() { playTone(1046,0.15,"sine",0.35); playTone(1318,0.15,"sine",0.35,0.1); }
+function playTick() { playTone(660,0.08,"square",0.2); }
+function playBombSound() { playTone(120,0.4,"sawtooth",0.4); playTone(80,0.6,"sawtooth",0.3,0.1); }
+function playUltimateSound(index) {
+    if (!soundOn || !audioCtx) return;
+    const baseFreq = [330,440,392,880,523][index];
+    for (let i = 0; i < 8; i++) playTone(baseFreq+i*50, 0.15, "sawtooth", 0.2-i*0.02, i*0.08);
+    playTone(baseFreq*2, 0.5, "sine", 0.3, 0.3);
+}
+function playJoySound() {
+    if (!soundOn || !audioUnlocked) return;
+    joyAudio.currentTime = 0;
+    joyAudio.play().catch(() => {
+        playTone(523,0.15,"sine",0.3); playTone(659,0.15,"sine",0.3,0.1);
+        playTone(784,0.2,"sine",0.3,0.2); playTone(1046,0.25,"sine",0.25,0.3);
+    });
+}
+function playPokeCry(index) {
+    if (!soundOn) return;
+    const cry = pokeCries[index];
+    if (cry) { cry.currentTime = 0; cry.play().catch(()=>{}); }
+}
+function startSynthBGM() {
+    if (bgmPlaying || !audioCtx) return;
+    bgmPlaying = true;
+    const melody = [330,370,440,370,330,294,330,262,330,370,440,494,440,370,330,370];
+    let i = 0;
+    bgmInterval = setInterval(() => { playTone(melody[i], 0.2, "sawtooth", 0.12); i = (i+1) % melody.length; }, 210);
+}
+function stopBGM() { bgmPlaying = false; if (bgmAudio) bgmAudio.pause(); clearInterval(bgmInterval); }
+function toggleSound() {
+    soundOn = !soundOn;
+    document.getElementById("soundBtn").innerText = soundOn ? "音效(開)" : "音效(關)";
+    if (!audioUnlocked) return;
+    if (soundOn) startBGM(); else stopBGM();
+}
+
+// ===== 過場與彈窗 =====
+function confirmJoyHeal() {
+    document.getElementById("joyConfirmModal").style.display = "none";
+    triggerJoyHeal();
+}
+function giveUpGame() {
+    document.getElementById("joyConfirmModal").style.display = "none";
+    gameOver();
+}
+function showLevelUpOverlay(level) {
+    const data = getLevelBadgeData(level);
+    document.getElementById("badgeImg").src = data.badge || "";
+    document.getElementById("gymLeaderImg").src = data.leader || "";
+    document.getElementById("levelUpText").innerText =
+        level >= TOTAL_LEVELS ? "恭喜打敗最終BOSS！" : "恭喜取得徽章，進入下一關～";
+    document.getElementById("levelQuote").innerText = getVictoryQuote(level);
+    document.getElementById("levelUpOverlay").classList.add("show");
+    playCelebrateSound();
+    setTimeout(() => document.getElementById("levelUpOverlay").classList.remove("show"), 1800);
+}
+function showAddOhTip() { const o=document.getElementById("addOhOverlay"); o.classList.add("show"); setTimeout(()=>o.classList.remove("show"), 1000); }
+function updateLevelInfo() {
+    const idx = level - 1;
+    document.getElementById("levelNum").innerText = `第${level}關`;
+    document.getElementById("gymName").innerText = gymNames[idx] || "未知道館";
+    document.getElementById("levelBadge").src = getLevelBadgeData(level).badge;
+}
+function renderLives() {
+    const c = document.getElementById("livesContainer"); c.innerHTML = "";
+    for (let i = 0; i < lives; i++) {
+        const img = document.createElement("img");
+        img.className = "life-icon"; img.src = "assets/wikilogo.png"; img.alt = "生命";
+        img.onerror = () => img.style.display = "none";
+        c.appendChild(img);
+    }
+}
+function triggerJoyHeal() {
+    isGameTransition = true;
+    const joyOverlay = document.getElementById("joyOverlay");
+    const goldFlash = document.getElementById("goldFlashOverlay");
+    playJoySound();
+    joyOverlay.style.display = "flex";
+    setTimeout(() => {
+        joyOverlay.style.display = "none";
+        goldFlash.classList.add("play");
+        setTimeout(() => {
+            goldFlash.classList.remove("play");
+            lives--; renderLives();
+            timeLeft = getLevelTime(level);
+            timeDom.innerText = timeLeft;
+            timeText.className = "time-text";
+            isGameTransition = false;
+            startTimer();
+        }, 500);
+    }, 2000);
+}
+
+// ===== 大招系統 =====
+const skillBarIcon = document.getElementById("skillBarIcon");
+const skillBarDots = document.getElementById("skillBarDots").children;
+const ultimateOverlay = document.getElementById("ultimateOverlay");
+const ultimateText = document.getElementById("ultimateText");
+const ultimateImg = document.getElementById("ultimateImg");
+
+function renderSkillBar() {
+    if (skillCombo === 0 || currentComboPoke === null) {
+        skillBarIcon.classList.remove("active");
+        skillBarIcon.src = pokeList[0].cellUrl;
+        for (let dot of skillBarDots) {
+            dot.style.background = "rgba(255,255,255,0.2)";
+            dot.style.borderColor = "rgba(255,255,255,0.4)";
+            dot.style.boxShadow = "none";
+        }
+        return;
+    }
+    const poke = pokeList[currentComboPoke];
+    skillBarIcon.src = poke.cellUrl;
+    skillBarIcon.classList.add("active");
+    for (let i = 0; i < skillBarDots.length; i++) {
+        const dot = skillBarDots[i];
+        if (i < skillCombo) {
+            dot.style.background = poke.skillColor;
+            dot.style.borderColor = poke.skillColor;
+            dot.style.boxShadow = `0 0 6px ${poke.skillColor}`;
+        } else {
+            dot.style.background = "rgba(255,255,255,0.2)";
+            dot.style.borderColor = "rgba(255,255,255,0.4)";
+            dot.style.boxShadow = "none";
+        }
+    }
+}
+function addSkillProgress(mainPokeType) {
+    if (isUltimateActive || isGameTransition) return;
+    if (currentComboPoke === null || skillCombo === 0) {
+        currentComboPoke = mainPokeType; skillCombo = 1;
+    } else {
+        skillCombo = mainPokeType === currentComboPoke ? Math.min(skillCombo+1, SKILL_MAX) : 1;
+        if (mainPokeType !== currentComboPoke) currentComboPoke = mainPokeType;
+    }
+    renderSkillBar();
+    if (skillCombo >= SKILL_MAX) triggerUltimate(currentComboPoke);
+}
+function triggerUltimate(pokeIndex) {
+    isUltimateActive = true; isGameTransition = true;
+    const poke = pokeList[pokeIndex];
+    playPokeCry(pokeIndex); playUltimateSound(pokeIndex);
+    ultimateImg.classList.remove("play"); ultimateImg.style.opacity = "0";
+    ultimateText.style.animation = "none"; ultimateText.offsetHeight; ultimateText.style.animation = "";
+    ultimateText.innerText = poke.skillName; ultimateText.style.color = poke.skillColor;
+    ultimateOverlay.style.display = "flex";
+    setTimeout(() => {
+        ultimateImg.src = poke.skillImgUrl; ultimateImg.classList.add("play"); ultimateImg.style.opacity = "1";
+        createUltimateParticles(poke.particleColor);
+        for (let y = 0; y < row; y++)
+            for (let x = 0; x < col; x++)
+                if (grid[y][x] !== pokeIndex) { grid[y][x] = null; shineGrid[y][x] = null; }
+        currentComboPoke = null; skillCombo = 0; renderSkillBar();
+        render(); dropBlock(); fillEmpty(); chainMul = 1;
+        setTimeout(() => {
+            ultimateOverlay.style.display = "none";
+            isUltimateActive = false; isGameTransition = false;
+            setTimeout(autoClear, 200);
+        }, 800);
+    }, 1300);
+}
+function createUltimateParticles(color) {
+    const box = gameBox.getBoundingClientRect();
+    for (let i = 0; i < 60; i++) {
+        const p = document.createElement("div");
+        p.className = "ultimate-particle";
+        const s = 10 + Math.random()*10;
+        p.style.width = s + "px"; p.style.height = s + "px";
+        p.style.background = color;
+        p.style.left = (box.left + Math.random()*box.width) + "px";
+        p.style.top = (box.top + Math.random()*box.height) + "px";
+        p.style.animationDelay = Math.random()*0.5 + "s";
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1500);
+    }
+}
+
+// ===== 遊戲核心 =====
+let col = 6, row = 6;
+let grid = [], shineGrid = [];
+let selected = null;
+let score = 0, level = 1, targetScore = 300, chainMul = 1;
+let timeLeft = 60, timeTimer = null;
+let ohwNum = 2;
+let isPcView = false;
+
+const gameBox = document.getElementById("gameBox");
+const scoreDom = document.getElementById("score");
+const targetDom = document.getElementById("target");
+const timeDom = document.getElementById("time");
+const timeText = document.querySelector(".time-text");
+const ohwBtn = document.getElementById("ohwBtn");
+const modal = document.getElementById("modal");
+const modalTitle = document.getElementById("modalTitle");
+const modalText = document.getElementById("modalText");
+const superOverlay = document.getElementById("superOverlay");
+const superImg = document.getElementById("superImg");
+const soundBtn = document.getElementById("soundBtn");
+const startMask = document.getElementById("startMask");
+
+startBtn.addEventListener("click", handleStartGame);
+soundBtn.addEventListener("click", toggleSound);
+
+function handleStartGame() {
+    audioUnlocked = true;
+    try { initAudioContext(); initBGM(); playTone(440, 0.001, "sine", 0.001); } catch(e) {}
+    startMask.classList.add("hidden");
+    if (soundOn) setTimeout(startBGM, 100);
+    initBoard();
+}
+function getLevelTime(lv) { return Math.min(60 + (lv - 1) * 3, MAX_TIME); }
+function toggleView() { isPcView = !isPcView; document.body.classList.toggle("pc-view", isPcView); }
+
+function hasAnyMatch() {
+    for (let y = 0; y < row; y++)
+        for (let x = 0; x < col-2; x++) {
+            const v = grid[y][x]; if (v === null) continue;
+            if (grid[y][x+1] === v && grid[y][x+2] === v) return true;
+        }
+    for (let x = 0; x < col; x++)
+        for (let y = 0; y < row-2; y++) {
+            const v = grid[y][x]; if (v === null) continue;
+            if (grid[y+1][x] === v && grid[y+2][x] === v) return true;
+        }
+    return false;
+}
+function generateLine() {
+    const line = [], shine = [];
+    for (let x = 0; x < col; x++) {
+        line.push(Math.floor(Math.random()*pokeList.length));
+        shine.push(Math.random() <= 0.03 ? (Math.random()>0.5?"gold":"red") : null);
+    }
+    return { line, shine };
+}
+function initBoard() {
+    col = 6; row = 6;
+    updateLevelInfo(); renderLives();
+    score = 0; chainMul = 1; currentComboPoke = null; skillCombo = 0;
+    renderSkillBar(); updateOhwBtnText();
+    do {
+        grid = []; shineGrid = []; gameBox.innerHTML = "";
+        for (let y = 0; y < row; y++) { const d=generateLine(); grid.push(d.line); shineGrid.push(d.shine); }
+    } while (!hasAnyMatch());
+    startTimer(); render();
+}
+function startTimer() {
+    clearInterval(timeTimer); clearInterval(tickInterval); tickInterval = null;
+    timeLeft = getLevelTime(level);
+    timeText.className = "time-text"; timeDom.innerText = timeLeft;
+    timeTimer = setInterval(() => {
+        timeLeft--; timeDom.innerText = timeLeft;
+        if (timeLeft <= 10) {
+            timeText.classList.remove("flash-yellow"); timeText.classList.add("flash-red");
+            if (!tickInterval) tickInterval = setInterval(playTick, 500);
+        } else if (timeLeft <= 30) {
+            timeText.classList.remove("flash-red"); timeText.classList.add("flash-yellow");
+            if (timeLeft === 30) play30sAlert();
+        } else { timeText.classList.remove("flash-yellow","flash-red"); }
+        if (timeLeft <= 0) {
+            clearInterval(timeTimer); clearInterval(tickInterval); tickInterval = null;
+            playBombSound(); isGameTransition = true;
+            if (lives > 0) {
+                document.getElementById("remainLivesText").innerText = lives;
+                document.getElementById("joyConfirmModal").style.display = "flex";
+            } else gameOver();
+        }
+    }, 1000);
+}
+function updateOhwBtnText() { ohwBtn.innerText = `大木博士救救我！[${ohwNum}]`; }
+
+function render(clearPos=[], skillLines=[]) {
+    gameBox.innerHTML = "";
+    for (let y = 0; y < row; y++) {
+        for (let x = 0; x < col; x++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            const key = `${x},${y}`;
+            if (clearPos.includes(key)) cell.classList.add("poke-ball-catch");
+            if (shineGrid[y][x] === "gold") cell.classList.add("gold-shine");
+            if (shineGrid[y][x] === "red") cell.classList.add("red-shine");
+            for (let s of skillLines) {
+                if (s.x === x && s.y === y) {
+                    const c = shineGrid[y][x] === "gold" ? "gold" : "red";
+                    cell.classList.add(s.type === "cross" ? `cross-${c}` : `star-${c}`);
+                }
+            }
+            if (grid[y][x] === null) {
+                cell.classList.add("empty");
+            } else {
+                const p = pokeList[grid[y][x]];
+                cell.innerHTML = `<img src="${p.cellUrl}" alt="${p.name}" class="${p.big?'big-sprite':''}" onerror="this.style.display='none';this.parentElement.innerText='${p.name}'">`;
+            }
+            cell.dataset.x = x; cell.dataset.y = y;
+            if (selected && selected.x===x && selected.y===y) cell.classList.add("selected");
+            cell.onclick = () => clickCell(x, y);
+            gameBox.appendChild(cell);
+        }
+    }
+    scoreDom.innerText = score; targetDom.innerText = targetScore; timeDom.innerText = timeLeft; updateOhwBtnText();
+}
+function clickCell(x, y) {
+    if (isUltimateActive || isGameTransition) return;
+    if (grid[y][x] === null) return;
+    if (shineGrid[y][x] !== null) { triggerSuperSkill(x, y); return; }
+    if (!selected) { selected = {x,y}; render(); return; }
+    if (selected.x===x && selected.y===y) { selected = null; render(); return; }
+    const dx = Math.abs(selected.x - x), dy = Math.abs(selected.y - y);
+    if (!((dx===1 && dy===0) || (dx===0 && dy===1))) { selected = {x,y}; render(); return; }
+    performSwap(selected.x, selected.y, x, y);
+}
+function performSwap(x1, y1, x2, y2) {
+    swap(x1, y1, x2, y2); chainMul = 1;
+    setTimeout(() => {
+        const match = checkAllClear();
+        if (match.size === 0) {
+            swap(x1, y1, x2, y2);
+        } else {
+            playClearSound();
+            executeClear(match);
+        }
+        selected = null;
+        render();
+        checkGameState();
+    }, 100);
+}
+function triggerSuperSkill(x, y) {
+    const pid = grid[y][x]; playPokeCry(pid);
+    const p = pokeList[pid]; superImg.src = p.superUrl; superOverlay.style.display = "flex";
+    const type = Math.random() > 0.5 ? "cross" : "star";
+    const delList = type === "cross"
+        ? [[x,y],[x-1,y],[x+1,y],[x,y-1],[x,y+1]]
+        : [[x,y],[x-1,y-1],[x+1,y-1],[x-1,y+1],[x+1,y+1]];
+    const skillArr = delList.filter(pt => pt[0]>=0&&pt[0]<col&&pt[1]>=0&&pt[1]<row).map(pt => ({x:pt[0],y:pt[1],type}));
+    render([], skillArr);
+    setTimeout(() => {
+        superOverlay.style.display = "none";
+        let cnt = 0;
+        delList.forEach(pt => {
+            const px=pt[0], py=pt[1];
+            if (px>=0&&px<col&&py>=0&&py<row) { grid[py][px]=null; shineGrid[py][px]=null; cnt++; }
+        });
+        score += cnt * 8; playClearSound(); dropBlock(); fillEmpty();
+        setTimeout(autoClear, 200); render();
+    }, 800);
+}
+function swap(x1,y1,x2,y2) {
+    [grid[y1][x1], grid[y2][x2]] = [grid[y2][x2], grid[y1][x1]];
+    [shineGrid[y1][x1], shineGrid[y2][x2]] = [shineGrid[y2][x2], shineGrid[y1][x1]];
+}
+function checkAllClear() {
+    const set = new Set();
+    for (let y = 0; y < row; y++)
+        for (let x = 0; x < col-2; x++) {
+            const v = grid[y][x]; if (v === null) continue;
+            if (grid[y][x+1]===v && grid[y][x+2]===v) {
+                let k = x; while (k < col && grid[y][k] === v) { set.add(`${k},${y}`); k++; }
+            }
+        }
+    for (let x = 0; x < col; x++)
+        for (let y = 0; y < row-2; y++) {
+            const v = grid[y][x]; if (v === null) continue;
+            if (grid[y+1][x]===v && grid[y+2][x]===v) {
+                let k = y; while (k < row && grid[k][x] === v) { set.add(`${x},${k}`); k++; }
+            }
+        }
+    return set;
+}
+function executeClear(set) {
+    if (isGameTransition) return;
+    const arr = Array.from(set); render(arr, []);
+    const typeCount = {};
+    arr.forEach(key => {
+        const [x,y] = key.split(",").map(Number);
+        const t = grid[y][x]; if (t !== null) typeCount[t] = (typeCount[t]||0) + 1;
+    });
+    let maxType = null, maxCnt = 0;
+    for (const t in typeCount) if (typeCount[t] > maxCnt) { maxCnt = typeCount[t]; maxType = Number(t); }
+    setTimeout(() => {
+        score += arr.length * 8 * chainMul;
+        arr.forEach(key => { const [x,y]=key.split(",").map(Number); grid[y][x]=null; shineGrid[y][x]=null; });
+        if (maxType !== null) addSkillProgress(maxType);
+        dropBlock(); fillEmpty(); chainMul = Math.min(chainMul + 1, 3);
+        setTimeout(() => { autoClear(); render(); checkGameState(); }, 300);
+    }, 450);
+}
+function dropBlock() {
+    for (let x = 0; x < col; x++) {
+        const stack = [];
+        for (let y = row-1; y >= 0; y--) if (grid[y][x] !== null) stack.push({val:grid[y][x], shine:shineGrid[y][x]});
+        for (let y = row-1; y >= 0; y--) {
+            if (stack.length > 0) { const it=stack.shift(); grid[y][x]=it.val; shineGrid[y][x]=it.shine; }
+            else { grid[y][x] = null; shineGrid[y][x] = null; }
+        }
+    }
+}
+function fillEmpty() {
+    for (let y = 0; y < row; y++)
+        for (let x = 0; x < col; x++)
+            if (grid[y][x] === null) {
+                grid[y][x] = Math.floor(Math.random()*pokeList.length);
+                shineGrid[y][x] = Math.random() <= 0.03 ? (Math.random()>0.5?"gold":"red") : null;
+            }
+}
+function autoClear() { if (isGameTransition) return; const s=checkAllClear(); if (s.size>0) executeClear(s); }
+
+// ===== 升關狀態檢查（含鎖防止連跳） =====
+function checkGameState() {
+    if (isLevelTransition) return;
+    if (score >= targetScore) {
+        isLevelTransition = true;
+        isGameTransition = true;
+        clearInterval(timeTimer); clearInterval(tickInterval); tickInterval = null;
+        if (level >= TOTAL_LEVELS) {
+            showLevelUpOverlay(level);
+            setTimeout(showFinalClear, 1800);
+            return;
+        }
+        if (level % 5 === 0 && lives < MAX_LIVES) { lives++; renderLives(); }
+        level++; targetScore = 300 + (level - 1) * 100;
+        if ((level - 1) % 2 === 0) { ohwNum = Math.min(ohwNum + 1, 5); showAddOhTip(); }
+        showLevelUpOverlay(level - 1);
+        setTimeout(() => {
+            isGameTransition = false;
+            isLevelTransition = false;
+            initBoard();
+        }, 1800);
+    }
+}
+function showFinalClear() {
+    stopBGM();
+    document.getElementById("finalClearImg").src = getLevelBadgeData(TOTAL_LEVELS).leader;
+    document.getElementById("finalScore").innerText = score;
+    document.getElementById("finalClearOverlay").classList.add("show");
+}
+function restartFromFinal() { document.getElementById("finalClearOverlay").classList.remove("show"); restartGame(); }
+
+function useOhw() {
+    if (ohwNum <= 0 || isUltimateActive || isGameTransition) return;
+    ohwNum--; updateOhwBtnText();
+    if (soundOn) { oakAudio.currentTime = 0; oakAudio.play().catch(()=>{}); }
+    superImg.src = ohwUrl; superOverlay.style.display = "flex";
+    const all = [];
+    for (let y = 0; y < row; y++) for (let x = 0; x < col; x++) if (grid[y][x] !== null) all.push({x,y});
+    for (let i = all.length-1; i > 0; i--) { const r=Math.floor(Math.random()*(i+1)); [all[i],all[r]]=[all[r],all[i]]; }
+    const removeList = all.slice(0, Math.min(10, all.length));
+    const removeSet = new Set(removeList.map(c => `${c.x},${c.y}`));
+    render(Array.from(removeSet), []);
+    setTimeout(() => {
+        superOverlay.style.display = "none";
+        removeList.forEach(c => { grid[c.y][c.x] = null; shineGrid[y][c.x] = null; });
+        score += removeList.length * 8;
+        dropBlock(); fillEmpty(); setTimeout(autoClear, 300); render();
+    }, 800);
+}
+function gameOver() {
+    isGameTransition = true;
+    const data = getLevelBadgeData(Math.min(level, TOTAL_LEVELS));
+    document.getElementById("gameOverLeaderImg").src = data.leader;
+    document.getElementById("gameOverText").innerText = failLines[Math.floor(Math.random()*failLines.length)];
+    document.getElementById("gameOverOverlay").classList.add("show");
+    playFailSound();
+    setTimeout(() => {
+        document.getElementById("gameOverOverlay").classList.remove("show");
+        modalTitle.innerText = "遊戲結束";
+        modalText.innerText = `你闖到第 ${level} 關\n最終得分：${score}`;
+        modal.style.display = "flex";
+    }, 2000);
+}
+function closeModal() { modal.style.display = "none"; }
+function restartGame() {
+    level = 1; score = 0; targetScore = 300; chainMul = 1;
+    ohwNum = 2; lives = 3; currentComboPoke = null; skillCombo = 0;
+    isGameTransition = false; isLevelTransition = false;
+    clearInterval(timeTimer); clearInterval(tickInterval); tickInterval = null;
+    stopBGM(); if (soundOn) setTimeout(startBGM, 200);
+    initBoard();
+}
+
+// ===== 拖曳系統 =====
+let dragStartX = -1, dragStartY = -1;
+let dragGhostEl = null;
+let isDraggingPokemon = false;
+
+function dragEndHandle(cell) {
+    if (dragGhostEl) { dragGhostEl.remove(); dragGhostEl = null; }
+    isDraggingPokemon = false;
+    if (!cell) { dragStartX = -1; dragStartY = -1; return; }
+    const endX = Number(cell.dataset.x);
+    const endY = Number(cell.dataset.y);
+    const dx = Math.abs(dragStartX - endX);
+    const dy = Math.abs(dragStartY - endY);
+    if (!((dx === 1 && dy === 0) || (dx === 0 && dy === 1))) {
+        dragStartX = -1; dragStartY = -1; return;
+    }
+    performSwap(dragStartX, dragStartY, endX, endY);
+    dragStartX = -1; dragStartY = -1;
+}
+
+// 電腦滑鼠
+gameBox.addEventListener("mousedown", (e) => {
+    const cell = e.target.closest(".cell");
+    if (!cell || cell.classList.contains("empty") || isUltimateActive || isGameTransition) return;
+    dragStartX = Number(cell.dataset.x);
+    dragStartY = Number(cell.dataset.y);
+    dragGhostEl = cell.cloneNode(true);
+    dragGhostEl.style.position = "fixed";
+    dragGhostEl.style.zIndex = "99999";
+    dragGhostEl.style.pointerEvents = "none";
+    dragGhostEl.style.opacity = "0.75";
+    dragGhostEl.style.transform = "scale(1.15)";
+    document.body.appendChild(dragGhostEl);
+    dragGhostEl.style.left = e.clientX - 30 + "px";
+    dragGhostEl.style.top = e.clientY - 30 + "px";
+});
+document.addEventListener("mousemove", (e) => {
+    if (!dragGhostEl) return;
+    dragGhostEl.style.left = e.clientX - 30 + "px";
+    dragGhostEl.style.top = e.clientY - 30 + "px";
+});
+gameBox.addEventListener("mouseup", (e) => {
+    if (dragStartX === -1) {
+        if (dragGhostEl) { dragGhostEl.remove(); dragGhostEl = null; }
+        return;
+    }
+    const cell = e.target.closest(".cell");
+    dragEndHandle(cell);
+});
+
+// 手機觸控
+gameBox.addEventListener("touchstart", (e) => {
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY).closest(".cell");
+    if (!cell || cell.classList.contains("empty") || isUltimateActive || isGameTransition) return;
+    dragStartX = Number(cell.dataset.x);
+    dragStartY = Number(cell.dataset.y);
+    isDraggingPokemon = true;
+    dragGhostEl = cell.cloneNode(true);
+    dragGhostEl.style.position = "fixed";
+    dragGhostEl.style.zIndex = "99999";
+    dragGhostEl.style.pointerEvents = "none";
+    dragGhostEl.style.opacity = "0.75";
+    dragGhostEl.style.transform = "scale(1.15)";
+    document.body.appendChild(dragGhostEl);
+    dragGhostEl.style.left = touch.clientX - 30 + "px";
+    dragGhostEl.style.top = touch.clientY - 30 + "px";
+}, { passive: true });
+
+document.addEventListener("touchmove", (e) => {
+    if (isDraggingPokemon) e.preventDefault();
+    if (!dragGhostEl) return;
+    const touch = e.touches[0];
+    dragGhostEl.style.left = touch.clientX - 30 + "px";
+    dragGhostEl.style.top = touch.clientY - 30 + "px";
+}, { passive: false });
+
+gameBox.addEventListener("touchend", (e) => {
+    isDraggingPokemon = false;
+    if (dragStartX === -1) {
+        if (dragGhostEl) { dragGhostEl.remove(); dragGhostEl = null; }
+        return;
+    }
+    const touch = e.changedTouches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY).closest(".cell");
+    dragEndHandle(cell);
+}, { passive: true });
+
+// ===== 最強兜底：2.5秒強制解鎖開始按鈕 =====
+window.onload = function() {
+    preloadAllResources();
+    setTimeout(finishLoading, 2500);
+};
+</script>
+</body>
+</html>
