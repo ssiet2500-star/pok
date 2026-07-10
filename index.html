@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>神奇寶貝碰碰碰</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Microsoft JhengHei", sans-serif;
+    }
+    body {
+        background: radial-gradient(circle, #3488eb 0%, #052a63 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding:12px 8px;
+        min-height:100vh;
+        overflow-x:hidden;
+    }
+    .start-mask{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.85) url("assets/start-bg.png") center / cover no-repeat;
+        z-index:99999;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:24px;
+    }
+    .start-title{
+        font-size:52px;
+        color:#ffd700;
+        font-weight:bold;
+        text-shadow:4px 4px #ff2222, 0 0 24px #ffd700;
+        text-align:center;
+        line-height:1.2;
+    }
+    .game-intro{
+        color:white;
+        text-align:left;
+        background:rgba(0,0,0,0.55);
+        padding:16px 22px;
+        border-radius:10px;
+        max-width:380px;
+        line-height:1.7;
+        font-size:14px;
+        backdrop-filter:blur(4px);
+    }
+    .game-intro h3{
+        color:#ffd700;
+        margin-bottom:8px;
+        text-align:center;
+        font-size:18px;
+    }
+    .game-intro ul{
+        padding-left:22px;
+        display:flex;
+        flex-direction:column;
+        gap:4px;
+    }
+    .loading-bar-wrap{
+        width:320px;
+        text-align:center;
+    }
+    .loading-text{
+        margin-bottom:10px;
+        font-size:18px;
+        font-weight:bold;
+        color:#ffd700;
+        text-shadow:0 0 8px rgba(255,215,0,0.6);
+        letter-spacing:2px;
+    }
+    .loading-bar{
+        width:100%;
+        height:12px;
+        background:rgba(255,255,255,0.2);
+        border-radius:6px;
+        overflow:hidden;
+        border:1px solid rgba(255,255,255,0.3);
+    }
+    .loading-progress{
+        height:100%;
+        width:0%;
+        background:linear-gradient(90deg,#ffd700,#ffaa00);
+        transition:width 0.3s ease;
+        box-shadow:0 0 10px #ffd700;
+    }
+    .start-btn{
+        padding:21px 48px;
+        font-size:30px;
+        line-height:1.4;
+        border:none;
+        border-radius:12px;
+        background:#ffd700;
+        color:#000;
+        font-weight:bold;
+        cursor:pointer;
+        transition:0.2s;
+    }
+    .start-btn:disabled{
+        background:#888;
+        cursor:not-allowed;
+        transform:none !important;
+        opacity:0.7;
+    }
+    .start-btn:hover:not(:disabled){
+        transform:scale(1.08);
+    }
+    .copyright-text{
+        position:absolute;
+        bottom:20px;
+        color:#000;
+        font-size:14px;
+        font-weight:bold;
+        letter-spacing:1px;
+    }
+    .start-mask.hidden{
+        display:none;
+        pointer-events:none;
+    }
+
+    /* 通關彈窗 */
+    .level-up-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.88);
+        z-index:99998;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        flex-direction:column;
+        gap:14px;
+        padding:20px;
+    }
+    .level-up-overlay.show{
+        display:flex;
+    }
+    .level-up-images{
+        display:flex;
+        align-items:center;
+        gap:24px;
+        flex-wrap:wrap;
+        justify-content:center;
+    }
+    .badge-img{
+        width:90px;
+        height:90px;
+        object-fit:contain;
+    }
+    .gym-leader-img{
+        width:220px;
+        height:220px;
+        object-fit:contain;
+    }
+    .level-up-text{
+        color:#ffd700;
+        font-size:22px;
+        font-weight:bold;
+        text-shadow:2px 2px #000;
+    }
+    .level-quote{
+        color:#fff;
+        font-size:16px;
+        max-width:420px;
+        text-align:center;
+        line-height:1.7;
+        text-shadow:1px 1px 2px #000;
+        font-style:italic;
+    }
+    .next-level-btn{
+        padding:12px 32px;
+        font-size:18px;
+        background:#ffd700;
+        color:#000;
+        border:none;
+        border-radius:10px;
+        font-weight:bold;
+        cursor:pointer;
+        margin-top:8px;
+        transition:0.2s;
+    }
+    .next-level-btn:hover{
+        transform:scale(1.08);
+    }
+
+    /* 遊戲結束 */
+    .game-over-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.88);
+        z-index:99998;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        flex-direction:column;
+        gap:18px;
+        padding:20px;
+    }
+    .game-over-overlay.show{
+        display:flex;
+    }
+    .game-over-text{
+        color:#fff;
+        font-size:20px;
+        font-weight:bold;
+        text-shadow:2px 2px #000;
+        text-align:center;
+        max-width:320px;
+        line-height:1.5;
+    }
+
+    /* 喬伊小姐動畫 */
+    .joy-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.75);
+        z-index:99997;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        flex-direction:column;
+        gap:20px;
+        pointer-events:none;
+    }
+    .joy-img{
+        width:70vw;
+        max-width:320px;
+        height:auto;
+        object-fit:contain;
+        animation:superSlideInOut 2s ease-in-out forwards;
+    }
+    .joy-text{
+        color:#ffd700;
+        font-size:24px;
+        font-weight:bold;
+        text-shadow:2px 2px #000,0 0 12px #ffd700;
+        animation:fadeInOut 2s ease-in-out forwards;
+    }
+    @keyframes fadeInOut{
+        0%{opacity:0;transform:scale(0.8)}
+        20%{opacity:1;transform:scale(1)}
+        80%{opacity:1;transform:scale(1)}
+        100%{opacity:0;transform:scale(1.1)}
+    }
+    @keyframes superSlideInOut{
+        0%{transform:translateX(-120vw) scale(0.2);opacity:0}
+        35%{transform:translateX(0) scale(1);opacity:1}
+        65%{transform:translateX(0) scale(1);opacity:1}
+        100%{transform:translateX(120vw) scale(1);opacity:0}
+    }
+
+    .gold-flash-overlay{
+        position:fixed;
+        inset:0;
+        background:radial-gradient(circle,#fff9c4 0%,#ffd700 50%,#ffaa00 100%);
+        opacity:0;
+        pointer-events:none;
+        z-index:99996;
+    }
+    .gold-flash-overlay.play{
+        animation:goldFlash 0.5s ease-in-out forwards;
+    }
+    @keyframes goldFlash{
+        0%{opacity:0}
+        50%{opacity:0.85}
+        100%{opacity:0}
+    }
+
+    .add-oh-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.6);
+        z-index:99997;
+        display:none;
+        align-items:center;
+        justify-content:center;
+    }
+    .add-oh-text{
+        font-size:36px;
+        color:#36d399;
+        font-weight:bold;
+        text-shadow:0 0 10px #36d399;
+        animation:flashGreen 0.4s infinite;
+    }
+    @keyframes flashGreen{
+        0%,100%{opacity:1;transform:scale(1)}
+        50%{opacity:0.6;transform:scale(1.1)}
+    }
+    .add-oh-overlay.show{
+        display:flex;
+    }
+
+    /* 閃光寶可夢專屬全屏動畫層 */
+    .shiny-super-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.6);
+        z-index:99994;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        pointer-events:none;
+    }
+    .shiny-super-img{
+        max-width:90vw;
+        max-height:90vh;
+        object-fit:contain;
+        opacity:0;
+    }
+    .shiny-super-img.play{
+        animation:superSlideInOut 1.5s ease-in-out forwards;
+    }
+
+    h1{
+        color:#fff;
+        text-shadow:2px 2px #ff7700;
+        font-size:24px;
+        margin-bottom:8px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        white-space:nowrap;
+    }
+    .title-pokemon-text{
+        height:56.25px;
+        width:auto;
+        vertical-align:middle;
+    }
+    .info-bar{
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px 20px;
+        color:white;
+        font-size:15px;
+        margin-bottom:10px;
+        justify-content:center;
+        align-items:center;
+    }
+    /* 倒數整行放大閃爍樣式 */
+    .time-wrap{
+        transition: all 0.3s ease;
+    }
+    .time-wrap.flash-yellow{
+        color:#ffd700;
+        animation:flashYellow 0.5s infinite;
+        transform: scale(1.5);
+    }
+    .time-wrap.flash-red{
+        color:#ff4444;
+        animation:flashRed 0.4s infinite;
+        transform: scale(2);
+    }
+    .level-skill-row{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:20px;
+        margin-bottom:10px;
+        flex-wrap:wrap;
+    }
+    .level-info{
+        text-align:center;
+        line-height:1.3;
+    }
+    .level-num{
+        font-size:16px;
+        font-weight:bold;
+    }
+    .gym-name{
+        font-size:14px;
+        color:#ffd700;
+    }
+    .level-badge{
+        height:26px;
+        width:auto;
+        margin-top:2px;
+    }
+    .skill-bar-container{
+        display:flex;
+        align-items:center;
+        gap:14px;
+        padding:8px 18px;
+        background:rgba(0,0,0,0.25);
+        border-radius:10px;
+    }
+    .skill-bar-icon{
+        width:38px;
+        height:38px;
+        object-fit:contain;
+        opacity:0.35;
+        transition:all 0.2s;
+    }
+    .skill-bar-icon.active{
+        opacity:1;
+        filter:drop-shadow(0 0 4px rgba(255,255,255,0.6));
+    }
+    .skill-bar-dots{
+        display:flex;
+        gap:8px;
+    }
+    .skill-bar-dot{
+        width:18px;
+        height:18px;
+        border-radius:3px;
+        background:rgba(255,255,255,0.2);
+        border:1px solid rgba(255,255,255,0.4);
+        transition:all 0.2s;
+    }
+    .time-text{
+        font-weight:bold;
+    }
+    @keyframes flashYellow{
+        0%,100%{text-shadow:0 0 6px #ffd700,0 0 12px #ffd700;}
+        50%{text-shadow:0 0 18px #ffd700,0 0 30px #ffd700;}
+    }
+    @keyframes flashRed{
+        0%,100%{text-shadow:0 0 6px #ff2222,0 0 12px #ff2222;}
+        50%{text-shadow:0 0 18px #ff2222,0 0 30px #ff2222;}
+    }
+
+    .mode-group,.tool-group{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        margin-bottom:10px;
+        justify-content:center;
+    }
+    button{
+        padding:7px 10px;
+        font-size:13px;
+        border:none;
+        border-radius:7px;
+        font-weight:bold;
+        cursor:pointer;
+    }
+    button:active{
+        transform:scale(0.96);
+    }
+    .tool-btn{
+        background:#f46060;
+        color:white;
+    }
+    .reset-btn{
+        background:#6677ff;
+        color:white;
+    }
+    .sound-btn{
+        background:#ff9922;
+        color:#111;
+    }
+    #gameBox{
+        display:grid;
+        gap:4px;
+        background:rgba(255,255,255,0.18);
+        padding:8px;
+        border-radius:10px;
+        box-shadow:0 0 20px #0055ff55;
+        grid-template-columns:repeat(6,14vw);
+        position:relative;
+    }
+    .lives-container{
+        width:100%;
+        max-width:calc(6*14vw + 16px);
+        display:flex;
+        justify-content:flex-end;
+        gap:6px;
+        margin-top:8px;
+        padding-right:8px;
+    }
+    .life-icon{
+        height:24px;
+        width:auto;
+        opacity:0.95;
+        filter:drop-shadow(0 0 2px rgba(255,215,0,0.6));
+    }
+
+    /* 格子 */
+    .cell{
+        width:14vw;
+        height:14vw;
+        max-width:56px;
+        max-height:56px;
+        background:#fff;
+        border-radius:8px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        user-select:none;
+        transition:transform 0.18s ease;
+        overflow:hidden;
+        position:relative;
+        touch-action:none;
+    }
+    .cell img{
+        width:90%;
+        height:90%;
+        object-fit:contain;
+        pointer-events:none;
+    }
+    .cell img.big-sprite{
+        width:150%;
+        height:150%;
+        transform:translateY(-1.67%);
+    }
+    /* 消除動畫 */
+    .cell.matching {
+        animation: matchPop 0.28s ease-out forwards;
+        z-index: 5;
+    }
+    @keyframes matchPop {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.8; }
+        100% { transform: scale(0); opacity: 0; }
+    }
+    /* 各寶可夢專屬閃光顏色 */
+    .cell.shiny.bulbasaur-shiny{
+        box-shadow: 0 0 8px 3px #36d399, inset 0 0 6px #8affc8;
+        animation: shinyGlowGreen 1.2s infinite alternate;
+    }
+    .cell.shiny.charmander-shiny{
+        box-shadow: 0 0 8px 3px #ff4422, inset 0 0 6px #ffbcac;
+        animation: shinyGlowRed 1.2s infinite alternate;
+    }
+    .cell.shiny.squirtle-shiny{
+        box-shadow: 0 0 8px 3px #3399ff, inset 0 0 6px #b0d8ff;
+        animation: shinyGlowBlue 1.2s infinite alternate;
+    }
+    .cell.shiny.pikachu-shiny{
+        box-shadow: 0 0 8px 3px #ffdd00, inset 0 0 6px #fff8b0;
+        animation: shinyGlowYellow 1.2s infinite alternate;
+    }
+    .cell.shiny.eevee-shiny{
+        box-shadow: 0 0 8px 3px #c8a878, inset 0 0 6px #ffe9cc;
+        animation: shinyGlowBrown 1.2s infinite alternate;
+    }
+    @keyframes shinyGlowGreen {
+        from { box-shadow: 0 0 6px 2px #36d399, inset 0 0 4px #8affc8; }
+        to { box-shadow: 0 0 16px 6px #2fc882, inset 0 0 10px #b6ffdd; }
+    }
+    @keyframes shinyGlowRed {
+        from { box-shadow: 0 0 6px 2px #ff4422, inset 0 0 4px #ffbcac; }
+        to { box-shadow: 0 0 16px 6px #ff2200, inset 0 0 10px #ffd2c2; }
+    }
+    @keyframes shinyGlowBlue {
+        from { box-shadow: 0 0 6px 2px #3399ff, inset 0 0 4px #b0d8ff; }
+        to { box-shadow: 0 0 16px 6px #0077ff, inset 0 0 10px #d0e8ff; }
+    }
+    @keyframes shinyGlowYellow {
+        from { box-shadow: 0 0 6px 2px #ffdd00, inset 0 0 4px #fff8b0; }
+        to { box-shadow: 0 0 16px 6px #ffbb00, inset 0 0 10px #fffdd0; }
+    }
+    @keyframes shinyGlowBrown {
+        from { box-shadow: 0 0 6px 2px #c8a878, inset 0 0 4px #ffe9cc; }
+        to { box-shadow: 0 0 16px 6px #b08850, inset 0 0 10px #fff2e0; }
+    }
+    .cell.gold-shine{
+        box-shadow:0 0 6px 2px #ffd700, inset 0 0 4px #ffd700;
+    }
+    .cell.red-shine{
+        box-shadow:0 0 6px 2px #ff2222, inset 0 0 4px #ff6666;
+    }
+    .cell:active{
+        transform:scale(1.05);
+    }
+    .cell.selected{
+        box-shadow:0 0 0 3px #ff2222, 0 0 8px #ff3333;
+    }
+    .empty{
+        background:transparent !important;
+    }
+
+    .super-overlay{
+        position:fixed;
+        top:0;left:0;
+        width:100%;height:100%;
+        background:rgba(0,0,0,0.75);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:9999;
+    }
+    .super-poke-img{
+        width:100vw;
+        height:100vh;
+        object-fit:contain;
+        animation:superSlideInOut 0.8s ease-in-out forwards;
+    }
+
+    /* 大招彈窗 - 文字優先顯示，圖片延遲0.25s */
+    .ultimate-overlay{
+        position:fixed;
+        inset:0;
+        z-index:99995;
+        display:none;
+        align-items:center;
+        justify-content:center;
+        pointer-events:none;
+        background:rgba(0,0,0,0.6);
+    }
+    .ultimate-img{
+        position:absolute;
+        max-width:90vw;
+        max-height:90vh;
+        opacity:0;
+        animation-delay: 0.25s;
+    }
+    .ultimate-img.play{
+        animation:superSlideInOut 1.5s ease-in-out forwards;
+    }
+    .ultimate-text{
+        font-size:72px;
+        font-weight:bold;
+        -webkit-text-stroke:1.5px #000;
+        animation:ultTextAnim 1.33s ease-out forwards;
+        z-index: 10;
+        position: absolute;
+        top:12%;
+    }
+    @keyframes ultTextAnim{
+        0%{transform:scale(0.2);opacity:0}
+        30%{transform:scale(1.3);opacity:1}
+        70%{transform:scale(1);opacity:1}
+        100%{transform:scale(1.6);opacity:0}
+    }
+
+    /* 彈窗 */
+    .modal{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.78);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:999;
+        padding:10px;
+    }
+    .modal-box{
+        background:#fff;
+        padding:24px 16px;
+        border-radius:12px;
+        text-align:center;
+        width:90%;
+        max-width:320px;
+    }
+    .modal-box h2{
+        font-size:22px;
+        margin-bottom:10px;
+    }
+    .modal-box p{
+        font-size:16px;
+        margin-bottom:16px;
+    }
+    .modal-box button{
+        font-size:16px;
+        padding:10px 24px;
+        background:#2277ff;
+        color:white;
+    }
+    .joy-confirm-btn{
+        background:#36d399 !important;
+        color:#111 !important;
+    }
+    .give-up-btn{
+        background:#f46060 !important;
+        color:white !important;
+    }
+    .modal-btn-group { display: flex; gap: 10px; justify-content: center; }
+
+    /* 全部通關 */
+    .final-clear-overlay{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.92);
+        z-index:99999;
+        display:none;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:20px;
+        padding:20px;
+    }
+    .final-clear-overlay.show{
+        display:flex;
+    }
+    .final-clear-title{
+        font-size:42px;
+        color:#ffd700;
+        font-weight:bold;
+        text-shadow:3px 3px #ff2222,0 0 20px #ffd700;
+        animation:titleGlow 1.5s infinite alternate;
+    }
+    @keyframes titleGlow{
+        from{text-shadow:3px 3px #ff2222,0 0 10px #ffd700;}
+        to{text-shadow:3px 3px #ff2222,0 0 30px #ffd700,0 0 50px #ffaa00;}
+    }
+    .final-clear-img{
+        width:280px;
+        height:280px;
+        animation:imgBounce 2s infinite;
+    }
+    @keyframes imgBounce{
+        0%,100%{transform:scale(1)}
+        50%{transform:scale(1.05)}
+    }
+    .final-clear-text{
+        color:white;
+        font-size:18px;
+        text-align:center;
+        line-height:1.6;
+    }
+    .final-clear-btn{
+        padding:14px 36px;
+        font-size:20px;
+        background:#ffd700;
+        border:none;
+        border-radius:10px;
+        font-weight:bold;
+    }
+    .final-clear-btn:hover{
+        transform:scale(1.08);
+    }
+    /* 大木博士按鈕圖示 */
+    .oak-icon-inline {
+        width: 18px;
+        height: 18px;
+        vertical-align: middle;
+        margin-right: 4px;
+        border-radius: 50%;
+    }
+    /* 大木博士全屏動畫層 */
+    .oak-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 99993;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .oak-full-svg {
+        width: 90vw;
+        max-width: 400px;
+        animation: superSlideInOut 1.5s ease-in-out forwards;
+    }
+</style>
+</head>
+<body>
+    <div class="start-mask" id="startMask">
+        <h2 class="start-title">神奇寶貝碰碰碰</h2>
+        <div class="game-intro">
+            <h3>遊戲說明</h3>
+            <ul>
+                <li>點擊或拖曳相鄰寶可夢交換</li>
+                <li>水平、垂直三個相同寶可夢即可消除得分</li>
+                <li>連續消除同一種寶可夢3次釋放大招</li>
+                <li>切換寶可夢種類會重置大招累計</li>
+                <li>時間內達成分數通關獲得徽章</li>
+                <li>大木博士道具可隨機消除一整排</li>
+                <li>每5關增加1條生命，上限5條</li>
+                <li>✨ 點擊閃光寶可夢隨機消除十字或X形3格，同時播放專屬全屏動畫！</li>
+            </ul>
+        </div>
+        <div class="loading-bar-wrap">
+            <div class="loading-text" id="loadingText">遊戲載入中，請稍後～</div>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loadingProgress"></div>
+            </div>
+        </div>
+        <button class="start-btn" id="startBtn" disabled>點擊開始遊戲<br>Start Game</button>
+        <div class="copyright-text">[文心鑫品] V.2026</div>
+    </div>
+
+    <div class="level-up-overlay" id="levelUpOverlay">
+        <div class="level-up-images">
+            <img class="badge-img" id="badgeImg" alt="徽章">
+            <img class="gym-leader-img" id="gymLeaderImg" alt="館主">
+        </div>
+        <div class="level-up-text" id="levelUpText">恭喜通關</div>
+        <div class="level-quote" id="levelQuote"></div>
+        <button class="next-level-btn" id="nextLevelBtn" onclick="goNextLevel()">下一關</button>
+    </div>
+
+    <div class="game-over-overlay" id="gameOverOverlay">
+        <img class="gym-leader-img" id="gameOverLeaderImg" alt="館主">
+        <div class="game-over-text" id="gameOverText"></div>
+    </div>
+
+    <div class="joy-overlay" id="joyOverlay">
+        <img class="joy-img" id="joyImg" src="assets/joy.png" alt="喬伊小姐">
+        <div class="joy-text">喬伊小姐恢復你的時間！</div>
+    </div>
+
+    <div class="gold-flash-overlay" id="goldFlashOverlay"></div>
+
+    <div class="add-oh-overlay" id="addOhOverlay">
+        <div class="add-oh-text">大木博士次數 +1</div>
+    </div>
+
+    <div class="ultimate-overlay" id="ultimateOverlay">
+        <img class="ultimate-img" id="ultimateImg" alt="">
+        <div class="ultimate-text" id="ultimateText"></div>
+    </div>
+
+    <!-- 閃光寶可夢全屏動畫層 -->
+    <div class="shiny-super-overlay" id="shinySuperOverlay">
+        <img class="shiny-super-img" id="shinySuperImg">
+    </div>
+
+    <!-- 大木博士動畫層 -->
+    <div class="oak-overlay" id="oakOverlay">
+        <svg class="oak-full-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="200" cy="200" r="180" fill="#8B4513"/>
+            <circle cx="200" cy="160" r="80" fill="#ffdbac"/>
+            <ellipse cx="200" cy="300" rx="100" ry="70" fill="#fff"/>
+            <circle cx="170" cy="150" r="15" fill="#333"/>
+            <circle cx="230" cy="150" r="15" fill="#333"/>
+            <path d="M 170 200 Q 200 230 230 200" stroke="#333" stroke-width="4" fill="none"/>
+            <rect x="120" y="100" width="160" height="40" rx="10" fill="#fff"/>
+        </svg>
+    </div>
+
+    <h1>
+        <img class="title-pokemon-text" id="pokemonTitleImg" src="assets/pokemon-title.jpg" alt="寶可夢">碰碰碰
+    </h1>
+
+    <div class="info-bar">
+        <div>得分：<span id="score">0</span>／<span id="target">300</span></div>
+        <div class="time-wrap">剩餘時間：<span class="time-text" id="time">60</span>秒</div>
+    </div>
+
+    <div class="level-skill-row">
+        <div class="level-info">
+            <div class="level-num" id="levelNum">第1關</div>
+            <div class="gym-name" id="gymName">深灰道館</div>
+            <img class="level-badge" id="levelBadge" alt="徽章">
+        </div>
+        <div class="skill-bar-container">
+            <img class="skill-bar-icon" id="skillBarIcon" alt="技能">
+            <div class="skill-bar-dots" id="skillBarDots">
+                <div class="skill-bar-dot"></div>
+                <div class="skill-bar-dot"></div>
+                <div class="skill-bar-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mode-group">
+        <button class="sound-btn" id="soundBtn">音效(開)</button>
+        <button class="reset-btn" onclick="restartGame()">重新開始</button>
+    </div>
+
+    <div class="tool-group">
+        <button class="tool-btn" id="ohwBtn" onclick="useOhw()">
+            <svg class="oak-icon-inline" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="18" fill="#8B4513"/>
+                <circle cx="20" cy="16" r="8" fill="#ffdbac"/>
+                <ellipse cx="20" cy="30" rx="10" ry="7" fill="#fff"/>
+                <circle cx="17" cy="15" r="1.5" fill="#333"/>
+                <circle cx="23" cy="15" r="1.5" fill="#333"/>
+                <path d="M 17 20 Q 20 22 23 20" stroke="#333" stroke-width="1" fill="none"/>
+                <rect x="12" y="10" width="16" height="4" rx="2" fill="#fff"/>
+            </svg>
+            大木博士救救我！[<span id="ohwCount">2</span>]
+        </button>
+    </div>
+
+    <div id="gameBox"></div>
+    <div class="lives-container" id="livesContainer"></div>
+
+    <div class="super-overlay" id="superOverlay">
+        <img class="super-poke-img" id="superImg" alt="">
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-box">
+            <h2 id="modalTitle"></h2>
+            <p id="modalText"></p>
+            <button onclick="closeModal()">確定</button>
+        </div>
+    </div>
+
+    <div class="modal" id="joyConfirmModal">
+        <div class="modal-box">
+            <h2>時間用完</h2>
+            <p>剩餘生命：<span id="remainLivesText">3</span></p>
+            <div class="modal-btn-group">
+                <button class="joy-confirm-btn" onclick="confirmJoyHeal()">呼叫喬伊小姐</button>
+                <button class="give-up-btn" onclick="giveUpGame()">放棄本關</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="final-clear-overlay" id="finalClearOverlay">
+        <div class="final-clear-title">恭喜全破！</div>
+        <img class="final-clear-img" id="finalClearImg" src="assets/champion.png" alt="冠軍">
+        <div class="final-clear-text">
+            最終分數：<span id="finalScore">0</span><br>
+            你已成為聯盟冠軍！
+        </div>
+        <button class="final-clear-btn" onclick="restartGame()">重新挑戰</button>
+    </div>
+
+<script>
+// ============================================================
+//  全域常數設定
+// ============================================================
+const TOTAL_LEVELS = 41;
+const SKILL_MAX = 3;
+const MAX_LIVES = 5;
+const ROW = 6;
+const COL = 6;
+const DRAG_THRESHOLD = 25;
+const MATCH_DELAY = 280;
+const SHINY_CHANCE = 0.06; // 6% 機率出現閃光寶可夢
+
+// ============================================================
+//  遊戲狀態
+// ============================================================
+let level = 1;
+let score = 0;
+let targetScore = 300;
+let timeLeft = 60;
+let timer = null;
+let lives = 3;
+let ohwCount = 2;
+let maxTimeLimit = 60;
+
+// 大招相關
+let currentComboPoke = null;
+let skillCombo = 0;
+let isUltimateActive = false;
+let isGameTransition = false;
+let isShinyAnimPlaying = false;
+
+// 拖曳狀態
+let dragStartX = -1;
+let dragStartY = -1;
+let selectRow = -1;
+let selectCol = -1;
+let activePointerId = null;
+let dragTriggered = false;
+
+// 音訊
+let soundOpen = true;
+let audioInitialized = false;
+let audioCtx = null;
+let bgmAudio = null;
+
+// 外部音檔快取（audio/ 目錄）
+let sfxCache = {};
+const sfxFiles = {
+    bgm: "audio/bgm.opus",
+    bulbasaur: "audio/bulbasaur_cry.opus",
+    charmander: "audio/charmander_cry.opus",
+    squirtle: "audio/squirtle_cry.opus",
+    pikachu: "audio/pikachu_cry.opus",
+    eevee: "audio/eevee_cry.opus",
+    joy: "audio/joy.mp3",
+    oak: "audio/professor-oak.mp3"
+};
+
+// 閃光寶可夢紀錄 (key: row*COL+col)
+let shinyMap = {};
+
+// ============================================================
+//  寶可夢資料
+// ============================================================
+const pokeList = [
+    { name: "妙蛙種子", idx: 0, cell: "assets/pokemon/bulbasaur_cell.png", superImg: "assets/pokemon/bulbasaur_super.png", skillImg: "assets/skills/skill-bulbasaur.jpg", skillName: "飛葉快刀", color: "#36d399", big: true, shinyClass:"bulbasaur-shiny" },
+    { name: "小火龍",   idx: 1, cell: "assets/pokemon/charmander_cell.png", superImg: "assets/pokemon/charmander_super.png", skillImg: "assets/skills/skill-charmander.jpg", skillName: "噴射火焰", color: "#ff4422", big: true, shinyClass:"charmander-shiny" },
+    { name: "傑尼龜",   idx: 2, cell: "assets/pokemon/squirtle_cell.png", superImg: "assets/pokemon/squirtle_super.png", skillImg: "assets/skills/skill-squirtle.jpg", skillName: "泡沫光線", color: "#3399ff", big: true, shinyClass:"squirtle-shiny" },
+    { name: "皮卡丘",   idx: 3, cell: "assets/pokemon/pikachu_cell.png", superImg: "assets/pokemon/pikachu_super.png", skillImg: "assets/skills/skill-pikachu.jpg", skillName: "十萬伏特", color: "#ffdd00", big: false, shinyClass:"pikachu-shiny" },
+    { name: "伊布",     idx: 4, cell: "assets/pokemon/eevee_cell.png", superImg: "assets/pokemon/eevee_super.png", skillImg: "assets/skills/skill-eevee.jpg", skillName: "高速星星", color: "#c8a878", big: false, shinyClass:"eevee-shiny" }
+];
+
+// ============================================================
+//  道館名稱（41關）
+// ============================================================
+const gymNames = [
+    "深灰道館","華藍道館","枯葉道館","玉虹道館","淺紅道館","金黃道館","紅蓮道館","常青道館",
+    "桔梗道館","檜皮道館","滿金道館","緣朱道館","湛藍道館","淺蔥道館","卡吉道館","烟墨道館",
+    "卡那茲道館","武鬥道館","紫堇道館","綠嶺道館",
+    "火箭隊實習隊員","火箭隊隊員","火箭隊資深隊員","火箭隊小隊長","火箭隊特務",
+    "火箭隊精英幹部","火箭隊親衛隊員","火箭隊突擊隊長","火箭隊幹部總長","火箭隊基地司令",
+    "彩虹火箭隊幹部候補","彩虹火箭隊研究員","彩虹火箭隊先鋒","彩虹火箭隊特工","彩虹火箭隊遺跡獵人",
+    "彩虹火箭隊調度官","彩虹火箭隊搜查官","彩虹火箭隊特務","彩虹火箭隊訓練教官","彩虹火箭隊執行官",
+    "火箭隊總部"
+];
+
+// ============================================================
+//  DOM 快取
+// ============================================================
+const gameBox         = document.getElementById("gameBox");
+const scoreDom        = document.getElementById("score");
+const targetDom       = document.getElementById("target");
+const timeDom         = document.getElementById("time");
+const timeWrapEl      = document.querySelector(".time-wrap");
+const timeText        = document.querySelector(".time-text");
+const levelDom        = document.getElementById("levelNum");
+const gymDom          = document.getElementById("gymName");
+const levelBadge      = document.getElementById("levelBadge");
+const livesContainer  = document.getElementById("livesContainer");
+const ohwBtn          = document.getElementById("ohwBtn");
+const ohwCountSpan    = document.getElementById("ohwCount");
+const startMask       = document.getElementById("startMask");
+const startBtn        = document.getElementById("startBtn");
+const loadingProgress = document.getElementById("loadingProgress");
+const loadingTextEl   = document.getElementById("loadingText");
+const soundBtn        = document.getElementById("soundBtn");
+const skillBarIcon    = document.getElementById("skillBarIcon");
+const skillDots       = document.getElementById("skillBarDots").children;
+const ultimateOverlay = document.getElementById("ultimateOverlay");
+const ultimateImg     = document.getElementById("ultimateImg");
+const ultimateText    = document.getElementById("ultimateText");
+const levelUpOverlay  = document.getElementById("levelUpOverlay");
+const gameOverOverlay = document.getElementById("gameOverOverlay");
+const gameOverLeaderImg = document.getElementById("gameOverLeaderImg");
+const finalClearOverlay = document.getElementById("finalClearOverlay");
+const finalScoreEl    = document.getElementById("finalScore");
+const joyConfirmModal = document.getElementById("joyConfirmModal");
+const remainLivesText = document.getElementById("remainLivesText");
+const joyOverlay      = document.getElementById("joyOverlay");
+const addOhOverlay    = document.getElementById("addOhOverlay");
+const goldFlashOverlay = document.getElementById("goldFlashOverlay");
+const shinySuperOverlay = document.getElementById("shinySuperOverlay");
+const shinySuperImg     = document.getElementById("shinySuperImg");
+const oakOverlay       = document.getElementById("oakOverlay");
+
+let grid = [];
+
+// ============================================================
+//  音訊系統（優先外部音檔，Web Audio 合成兜底）
+// ============================================================
+const pokeSfxKeys = ["bulbasaur", "charmander", "squirtle", "pikachu", "eevee"];
+
+function initAudio() {
+    if (audioInitialized) return;
+    audioInitialized = true;
+
+    // 預載所有外部音檔
+    for (let key in sfxFiles) {
+        try {
+            let a = new Audio(sfxFiles[key]);
+            a.preload = "auto";
+            a.volume = key === "bgm" ? 0.4 : 0.8;
+            if (key === "bgm") {
+                a.loop = true;
+                bgmAudio = a;
+            } else {
+                sfxCache[key] = a;
+            }
+        } catch(e) {
+            console.log("Audio load fail:", key, e);
+        }
+    }
+
+    // Web Audio 兜底初始化
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {}
+}
+
+// 播放快取音效（支援重入：每次從頭播）
+function playSfx(key) {
+    if (!soundOpen) return;
+    let sfx = sfxCache[key];
+    if (!sfx) return false;
+    try {
+        sfx.pause();
+        sfx.currentTime = 0;
+        sfx.play().catch(function(){});
+        return true;
+    } catch(e) {
+        return false;
+    }
+}
+
+// 播放寶可夢叫聲（消除、大招、閃光時使用）
+function playPokeCry(pokeIdx) {
+    let key = pokeSfxKeys[pokeIdx];
+    if (!key) return false;
+    return playSfx(key);
+}
+
+/**
+ * 統一音效介面
+ * @param {string} type - 音效類型
+ * @param {number} [pokeIdx] - 寶可夢索引（消除/大招/閃光時傳入）
+ */
+function playSound(type, pokeIdx) {
+    if (!soundOpen) return;
+
+    // 優先使用外部音檔
+    if (type === 'ultimate' && pokeIdx !== undefined) {
+        if (playPokeCry(pokeIdx)) return;
+    }
+    if (type === 'shiny' && pokeIdx !== undefined) {
+        if (playPokeCry(pokeIdx)) return;
+    }
+    if (type === 'joy') { if (playSfx('joy')) return; }
+    if (type === 'oak') { if (playSfx('oak')) return; }
+
+    // 兜底：Web Audio 合成
+    if (!audioCtx) return;
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        switch(type) {
+            case 'match': // 普通消除改用咚咚聲
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
+                break;
+            case 'swap':
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now); osc.stop(now + 0.08);
+                break;
+            case 'ultimate':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.6);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+                osc.start(now); osc.stop(now + 0.7);
+                break;
+            case 'joy':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.1);
+                osc.frequency.setValueAtTime(784, now + 0.2);
+                osc.frequency.setValueAtTime(1047, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);        progress += Math.random() * 12;
+        if(progress >= 100) progress = 100;
+        loadingProgress.style.width = progress + "%";
+        if(progress === 100){
+            clearInterval(interval);
+            loadingTextEl.textContent = "載入完成，點擊開始遊戲";
+            startBtn.disabled = false;
+        }
+    }, 150);
+}
+window.addEventListener("load", startLoading);
+
+// ============================================================
+//  徽章、館主圖片路徑處理
+// ============================================================
+function getBadgeSrc(lv) {
+    const idx = Math.min(lv - 1, 22);
+    return "assets/badges/badge_" + idx + ".png";
+}
+function getLeaderSrc(lv) {
+    const idx = Math.min(lv - 1, 22);
+    return "assets/leaders/leader_" + idx + ".png";
+}
+
+// ============================================================
+//  遊戲初始化、下一關、重新開始
+// ============================================================
+startBtn.addEventListener("click", function(){
+    initAudio();
+    if(soundOpen && bgmAudio) bgmAudio.play().catch(e=>{});
+    startMask.classList.add("hidden");
+    initBoard();
+    startTimer();
+});
+
+function initBoard(){
+    targetScore = 300 + (level - 1) * 50;
+    maxTimeLimit = Math.min(60 + (level - 1) * 3, 120);
+    timeLeft = maxTimeLimit;
+    score = 0;
+    currentComboPoke = null;
+    skillCombo = 0;
+    isGameTransition = false;
+    isUltimateActive = false;
+    shinyMap = {};
+
+    scoreDom.textContent = score;
+    targetDom.textContent = targetScore;
+    timeDom.textContent = timeLeft;
+    levelDom.textContent = "第" + level + "關";
+    gymDom.textContent = gymNames[level - 1];
+    levelBadge.src = getBadgeSrc(level);
+    timeWrapEl.className = "time-wrap";
+
+    renderLives();
+    renderSkillBar();
+    updateOhwUI();
+
+    gameBox.innerHTML = "";
+    grid = [];
+    for(let i = 0; i < ROW; i++){
+        grid[i] = [];
+        for(let j = 0; j < COL; j++){
+            grid[i][j] = Math.floor(Math.random() * pokeList.length);
+        }
+    }
+    while(checkMatchExists()){
+        for(let i = 0; i < ROW; i++){
+            for(let j = 0; j < COL; j++){
+                grid[i][j] = Math.floor(Math.random() * pokeList.length);
+            }
+        }
+    }
+    generateAllShiny();
+    renderGrid();
+}
+
+function generateAllShiny(){
+    shinyMap = {};
+    for(let i = 0; i < ROW; i++){
+        for(let j = 0; j < COL; j++){
+            if(Math.random() < SHINY_CHANCE){
+                shinyMap[i * COL + j] = grid[i][j];
+            }
+        }
+    }
+}
+function addNewShinyAfterDrop(){
+    for(let i = 0; i < ROW; i++){
+        for(let j = 0; j < COL; j++){
+            const key = i * COL + j;
+            if(grid[i][j] !== -1 && !shinyMap.hasOwnProperty(key)){
+                if(Math.random() < SHINY_CHANCE * 0.4){
+                    shinyMap[key] = grid[i][j];
+                }
+            }
+        }
+    }
+}
+
+function checkMatchExists(){
+    for(let i = 0; i < ROW; i++){
+        for(let j = 0; j < COL; j++){
+            const val = grid[i][j];
+            if(val === -1) continue;
+            if(j + 2 < COL && grid[i][j+1] === val && grid[i][j+2] === val) return true;
+            if(i + 2 < ROW && grid[i+1][j] === val && grid[i+2][j] === val) return true;
+        }
+    }
+    return false;
+}
+
+// ============================================================
+//  畫面渲染：格子、生命、技能條、大木次數
+// ============================================================
+function renderGrid(){
+    gameBox.innerHTML = "";
+    for(let i = 0; i < ROW; i++){
+        for(let j = 0; j < COL; j++){
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.r = i;
+            cell.dataset.c = j;
+            const idx = grid[i][j];
+            const mapKey = i * COL + j;
+            if(shinyMap.hasOwnProperty(mapKey) && idx >= 0){
+                cell.classList.add("shiny", pokeList[idx].shinyClass);
+            }
+            if(idx === -1){
+                cell.classList.add("empty");
+            }else{
+                const poke = pokeList[idx];
+                const img = document.createElement("img");
+                if(poke.big) img.classList.add("big-sprite");
+                img.src = poke.cell;
+                img.alt = poke.name;
+                img.onerror = ()=>{
+                    img.style.display = "none";
+                    cell.style.background = poke.color;
+                };
+                cell.appendChild(img);
+            }
+            cell.addEventListener("pointerdown", onPointerDown);
+            gameBox.appendChild(cell);
+        }
+    }
+}
+
+function renderLives(){
+    livesContainer.innerHTML = "";
+    for(let i = 0; i < lives; i++){
+        const img = document.createElement("img");
+        img.className = "life-icon";
+        img.src = "assets/world.png";
+        img.alt = "生命";
+        livesContainer.appendChild(img);
+    }
+}
+
+function renderSkillBar(){
+    skillDots[0].style.background = skillCombo >= 1 ? "#ffd700" : "rgba(255,255,255,0.2)";
+    skillDots[1].style.background = skillCombo >= 2 ? "#ffd700" : "rgba(255,255,255,0.2)";
+    skillDots[2].style.background = skillCombo >= 3 ? "#ffd700" : "rgba(255,255,255,0.2)";
+    if(currentComboPoke !== null){
+        skillBarIcon.src = pokeList[currentComboPoke].cell;
+        skillBarIcon.classList.add("active");
+    }else{
+        skillBarIcon.classList.remove("active");
+    }
+}
+
+function updateOhwUI(){
+    ohwCountSpan.textContent = ohwCount;
+}
+
+// ============================================================
+//  拖曳點擊邏輯：區分單擊閃光寶可夢 / 拖曳交換
+// ============================================================
+function onPointerDown(e){
+    if(isGameTransition || isUltimateActive || isShinyAnimPlaying) return;
+    e.preventDefault();
+    selectRow = Number(e.currentTarget.dataset.r);
+    selectCol = Number(e.currentTarget.dataset.c);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    activePointerId = e.pointerId;
+    dragTriggered = false;
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
+}
+function onPointerMove(e){
+    if(activePointerId !== e.pointerId) return;
+    const dx = Math.abs(e.clientX - dragStartX);
+    const dy = Math.abs(e.clientY - dragStartY);
+    if(dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD){
+        dragTriggered = true;
+    }
+}
+function onPointerUp(e){
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
+    if(activePointerId !== e.pointerId) return;
+
+    // 單擊未拖動 → 判斷是否閃光寶可夢
+    if(!dragTriggered){
+        const key = selectRow * COL + selectCol;
+        if(shinyMap.hasOwnProperty(key)){
+            const pokeIdx = shinyMap[key];
+            triggerShinySkill(selectRow, selectCol, pokeIdx);
+            activePointerId = null;
+            return;
+        }
+    }
+    // 拖動交換邏輯
+    if(dragTriggered){
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        let nr = selectRow, nc = selectCol;
+        if(Math.abs(dx) > Math.abs(dy)){
+            nc += dx > 0 ? 1 : -1;
+        }else{
+            nr += dy > 0 ? 1 : -1;
+        }
+        swapCell(selectRow, selectCol, nr, nc);
+    }
+    activePointerId = null;
+}
+
+// 交換格子
+function swapCell(r1,c1,r2,c2){
+    if(r2 <0 || r2 >= ROW || c2 <0 || c2 >= COL) return;
+    const temp = grid[r1][c1];
+    grid[r1][c1] = grid[r2][c2];
+    grid[r2][c2] = temp;
+
+    // 交換閃光狀態
+    const k1 = r1 * COL + c1;
+    const k2 = r2 * COL + c2;
+    const s1 = shinyMap[k1];
+    const s2 = shinyMap[k2];
+    if(s2 === undefined) delete shinyMap[k1]; else shinyMap[k1] = s2;
+    if(s1 === undefined) delete shinyMap[k2]; else shinyMap[k2] = s1;
+
+    playSound("swap");
+    renderGrid();
+    if(!checkMatchExists()){
+        setTimeout(()=>{
+            grid[r2][c2] = grid[r1][c1];
+            grid[r1][c1] = temp;
+            // 閃光還原
+            const sk1 = shinyMap[k1];
+            const sk2 = shinyMap[k2];
+            if(sk1 === undefined) delete shinyMap[k2]; else shinyMap[k2] = sk1;
+            if(sk2 === undefined) delete shinyMap[k1]; else shinyMap[k1] = sk2;
+            renderGrid();
+        }, MATCH_DELAY);
+        return;
+    }
+    isGameTransition = true;
+    setTimeout(startMatchChain, MATCH_DELAY);
+}
+
+// ============================================================
+// 閃光寶可夢專屬：全屏動畫 + 隨機十字/X三格消除（兩個效果同時執行）
+// ============================================================
+function triggerShinySkill(r,c,pokeIdx){
+    if(isShinyAnimPlaying || isGameTransition) return;
+    isShinyAnimPlaying = true;
+    const poke = pokeList[pokeIdx];
+    // 1. 播放全屏super圖動畫+叫聲
+    shinySuperImg.src = poke.superImg;
+    shinySuperOverlay.style.display = "flex";
+    shinySuperImg.classList.add("play");
+    playSound("shiny", pokeIdx);
+    setTimeout(()=>{
+        shinySuperImg.classList.remove("play");
+        shinySuperOverlay.style.display = "none";
+    }, 1500);
+
+    // 2. 隨機選一種3格消除樣式：水平、垂直、斜線\、斜線/
+    const patterns = [
+        [[r,c-1],[r,c],[r,c+1]],
+        [[r-1,c],[r,c],[r+1,c]],
+        [[r-1,c-1],[r,c],[r+1,c+1]],
+        [[r-1,c+1],[r,c],[r+1,c-1]]
+    ];
+    const selPat = patterns[Math.floor(Math.random()*4)];
+    const removeSet = new Set();
+    selPat.forEach(([x,y])=>{
+        if(x >=0 && x < ROW && y >=0 && y < COL){
+            removeSet.add(x*COL + y);
+        }
+    });
+    // 播放消除動畫
+    const cells = gameBox.querySelectorAll(".cell");
+    removeSet.forEach(k=> cells[k].classList.add("matching"));
+    setTimeout(()=>{
+        // 清除格子、閃光紀錄、加分
+        let addScore = 0;
+        removeSet.forEach(k=>{
+            const x = Math.floor(k / COL);
+            const y = k % COL;
+            if(grid[x][y] !== -1){
+                addScore += 25;
+                grid[x][y] = -1;
+                delete shinyMap[k];
+            }
+        });
+        score += addScore;
+        scoreDom.textContent = score;
+        goldFlashOverlay.classList.add("play");
+        setTimeout(()=>goldFlashOverlay.classList.remove("play"),500);
+        renderGrid();
+        // 下落填充 + 連鎖消除
+        setTimeout(()=>{
+            dropBlocks();
+            fillEmptyCell();
+            addNewShinyAfterDrop();
+            renderGrid();
+            setTimeout(startMatchChain, MATCH_DELAY);
+            isShinyAnimPlaying = false;
+        }, MATCH_DELAY);
+    }, 280);
+}
+
+// ============================================================
+// 消除連鎖主流程
+// ============================================================
+function startMatchChain(){
+    chainLoop();
+    function chainLoop(){
+        const matchData = findAllMatch();
+        const removeSet = matchData.set;
+        const firstPoke = matchData.firstType;
+        if(removeSet.size === 0){
+            isGameTransition = false;
+            checkWinLevel();
+            return;
+        }
+        playSound("match");
+        // 消除動畫
+        const cells = gameBox.querySelectorAll(".cell");
+        removeSet.forEach(k=> cells[k].classList.add("matching"));
+        setTimeout(()=>{
+            // 清除格子與閃光
+            removeSet.forEach(k=>{
+                const x = Math.floor(k / COL);
+                const y = k % COL;
+                grid[x][y] = -1;
+                delete shinyMap[k];
+            });
+            // 大招累計更新
+            if(currentComboPoke === firstPoke){
+                skillCombo++;
+            }else{
+                currentComboPoke = firstPoke;
+                skillCombo = 1;
+            }
+            renderSkillBar();
+            renderGrid();
+            // 下落填充
+            setTimeout(()=>{
+                dropBlocks();
+                fillEmptyCell();
+                addNewShinyAfterDrop();
+                renderGrid();
+                // 判斷是否滿3格釋放大招
+                if(skillCombo >= SKILL_MAX){
+                    const ultPoke = currentComboPoke;
+                    skillCombo = 0;
+                    currentComboPoke = null;
+                    renderSkillBar();
+                    triggerUltimateSkill(ultPoke, ()=>{
+                        setTimeout(chainLoop, MATCH_DELAY);
+                    });
+                }else{
+                    setTimeout(chainLoop, MATCH_DELAY);
+                }
+            }, MATCH_DELAY);
+        }, 280);
+    }
+}
+
+// 掃描所有可消除方塊、計分
+function findAllMatch(){
+    const removeSet = new Set();
+    let firstType = -1;
+    function addLine(list, isShinyLine){
+        let base = grid[list[0][0]][list[0][1]];
+        let pts = list.length ===3 ? 20 : list.length ===4 ? 40 :70;
+        if(isShinyLine) pts *=2;
+        score += pts;
+        scoreDom.textContent = score;
+        list.forEach(([x,y])=>{
+            const k = x*COL+y;
+            removeSet.add(k);
+            if(firstType === -1) firstType = grid[x][y];
+        });
+    }
+    // 水平掃描
+    for(let i=0;i<ROW;i++){
+        let j=0;
+        while(j<COL){
+            const val = grid[i][j];
+            if(val === -1){j++;continue;}
+            let line = [[i,j]];
+            let isShiny = shinyMap.has(i*COL+j);
+            let nj = j+1;
+            while(nj<COL && grid[i][nj] === val){
+                line.push([i,nj]);
+                if(shinyMap.has(i*COL+nj)) isShiny = true;
+                nj++;
+            }
+            if(line.length >=3) addLine(line, isShiny);
+            j = nj;
+        }
+    }
+    // 垂直掃描
+    for(let j=0;j<COL;j++){
+        let i=0;
+        while(i<ROW){
+            const val = grid[i][j];
+            if(val === -1){i++;continue;}
+            let line = [[i,j]];
+            let isShiny = shinyMap.has(i*COL+j);
+            let ni = i+1;
+            while(ni<ROW && grid[ni][j] === val){
+                line.push([ni,j]);
+                if(shinyMap.has(ni*COL+j)) isShiny = true;
+                ni++;
+            }
+            if(line.length >=3) addLine(line, isShiny);
+            i = ni;
+        }
+    }
+    return {set:removeSet, firstType:firstType};
+}
+
+// 方塊下落
+function dropBlocks(){
+    for(let j=0;j<COL;j++){
+        let stack = [];
+        let stackShiny = [];
+        for(let i=ROW-1;i>=0;i--){
+            if(grid[i][j] !== -1){
+                stack.push(grid[i][j]);
+                stackShiny.push(shinyMap.has(i*COL+j) ? shinyMap[i*COL+j] : null);
+            }
+        }
+        let pos = ROW-1;
+        for(let s=0;s<stack.length;s++){
+            grid[pos][j] = stack[s];
+            const k = pos*COL+j;
+            if(stackShiny[s] !== null) shinyMap[k] = stackShiny[s];
+            else delete shinyMap[k];
+            pos--;
+        }
+        while(pos >=0){
+            grid[pos][j] = -1;
+            delete shinyMap[pos*COL+j];
+            pos--;
+        }
+    }
+}
+// 空白生成新寶可夢
+function fillEmptyCell(){
+    for(let j=0;j<COL;j++){
+        for(let i=0;i<ROW;i++){
+            if(grid[i][j] === -1){
+                grid[i][j] = Math.floor(Math.random() * pokeList.length);
+            }
+        }
+    }
+}
+
+// ============================================================
+// 大招：消除所有非該寶可夢，skill圖片延遲0.25s，文字優先顯示
+// ============================================================
+function triggerUltimateSkill(pokeIdx, finishCb){
+    isUltimateActive = true;
+    const poke = pokeList[pokeIdx];
+    // 顯示大招文字、圖片
+    ultimateText.textContent = poke.skillName;
+    ultimateImg.src = poke.skillImg;
+    ultimateOverlay.style.display = "flex";
+    ultimateText.style.animation = "none";
+    ultimateImg.classList.remove("play");
+    void ultimateText.offsetWidth;
+    ultimateText.style.animation = "ultTextAnim 1.33s ease-out forwards";
+    setTimeout(()=>{
+        ultimateImg.classList.add("play");
+    },250);
+    playSound("ultimate", pokeIdx);
+    // 1.5秒動畫結束後執行消除
+    setTimeout(()=>{
+        // 消除所有不等於pokeIdx的格子
+        const removeSet = new Set();
+        for(let i=0;i<ROW;i++){
+            for(let j=0;j<COL;j++){
+                if(grid[i][j] !== -1 && grid[i][j] !== pokeIdx){
+                    removeSet.add(i*COL+j);
+                    grid[i][j] = -1;
+                    delete shinyMap[i*COL+j];
+                }
+            }
+        }
+        // 消除動畫
+        const cells = gameBox.querySelectorAll(".cell");
+        removeSet.forEach(k=> cells[k].classList.add("matching"));
+        setTimeout(()=>{
+            ultimateImg.classList.remove("play");
+            ultimateOverlay.style.display = "none";
+            renderGrid();
+            setTimeout(()=>{
+                dropBlocks();
+                fillEmptyCell();
+                addNewShinyAfterDrop();
+                renderGrid();
+                isUltimateActive = false;
+                finishCb();
+            }, MATCH_DELAY);
+        },280);
+    },1500);
+}
+
+// ============================================================
+// 時間倒數計時、倒數滴答音效、畫面閃爍放大
+// ============================================================
+function startTimer(){
+    if(timer) clearInterval(timer);
+    timer = setInterval(()=>{
+        timeLeft--;
+        timeDom.textContent = timeLeft;
+        // 重置樣式
+        timeWrapEl.className = "time-wrap";
+        if(timeLeft <= 30){
+            timeWrapEl.classList.add("flash-yellow");
+        }
+        if(timeLeft <= 10){
+            timeWrapEl.classList.remove("flash-yellow");
+            timeWrapEl.classList.add("flash-red");
+            playSound("countdown");
+        }
+        if(timeLeft <= 0){
+            clearInterval(timer);
+            timeGameOver();
+        }
+    },1000);
+}
+
+// 時間用完失敗
+function timeGameOver(){
+    gameOverLeaderImg.src = getLeaderSrc(level);
+    gameOverOverlay.classList.add("show");
+    playSound("gameover");
+}
+
+// 關卡達標判斷
+function checkWinLevel(){
+    if(score >= targetScore){
+        clearInterval(timer);
+        playSound("levelup");
+        levelUpOverlay.classList.add("show");
+        badgeImg.src = getBadgeSrc(level);
+        gymLeaderImg.src = getLeaderSrc(level);
+        return true;
+    }
+    return false;
+}
+
+// 下一關
+function goNextLevel(){
+    levelUpOverlay.classList.remove("show");
+    level++;
+    if(level > TOTAL_LEVELS){
+        finalScoreEl.textContent = score;
+        finalClearOverlay.classList.add("show");
+        return;
+    }
+    initBoard();
+    startTimer();
+}
+
+// 重新開遊戲
+function restartGame(){
+    clearInterval(timer);
+    level = 1;
+    lives = 3;
+    ohwCount = 2;
+    startMask.classList.remove("hidden");
+    finalClearOverlay.classList.remove("show");
+    gameOverOverlay.classList.remove("show");
+    levelUpOverlay.classList.remove("show");
+}
+
+// ============================================================
+// 大木博士道具：隨機消除一整排 + 飛入動畫
+// ============================================================
+function useOhw(){
+    if(ohwCount <=0 || isGameTransition || isUltimateActive || isShinyAnimPlaying) return;
+    ohwCount--;
+    updateOhwUI();
+    playSound("oak");
+    // 大木博士全屏動畫
+    oakOverlay.style.display = "flex";
+    setTimeout(()=>{
+        oakOverlay.style.display = "none";
+    },1500);
+    // 隨機橫排或直排消除
+    const isRow = Math.random() >0.5;
+    const removeSet = new Set();
+    if(isRow){
+        const r = Math.floor(Math.random() * ROW);
+        for(let j=0;j<COL;j++) removeSet.add(r*COL+j);
+    }else{
+        const c = Math.floor(Math.random() * COL);
+        for(let i=0;i<ROW;i++) removeSet.add(i*COL+c);
+    }
+    // 消除動畫
+    const cells = gameBox.querySelectorAll(".cell");
+    removeSet.forEach(k=> cells[k].classList.add("matching"));
+    setTimeout(()=>{
+        removeSet.forEach(k=>{
+            const x = Math.floor(k/COL);
+            const y = k%COL;
+            grid[x][y] = -1;
+            delete shinyMap[k];
+        });
+        renderGrid();
+        setTimeout(()=>{
+            dropBlocks();
+            fillEmptyCell();
+            addNewShinyAfterDrop();
+            renderGrid();
+            setTimeout(startMatchChain, MATCH_DELAY);
+        }, MATCH_DELAY);
+    },280);
+}
+
+// ============================================================
+// 時間用完彈窗：喬伊小姐補時間 / 放棄
+// ============================================================
+function confirmJoyHeal(){
+    joyConfirmModal.style.display = "none";
+    playSound("joy");
+    joyOverlay.style.display = "flex";
+    setTimeout(()=>joyOverlay.style.display = "none",2000);
+    timeLeft = maxTimeLimit;
+    timeDom.textContent = timeLeft;
+    timeWrapEl.className = "time-wrap";
+    startTimer();
+}
+function giveUpGame(){
+    joyConfirmModal.style.display = "none";
+    lives--;
+    renderLives();
+    if(lives <=0){
+        restartGame();
+    }else{
+        initBoard();
+        startTimer();
+    }
+}
+</script>
+</body>
+</html>
+
